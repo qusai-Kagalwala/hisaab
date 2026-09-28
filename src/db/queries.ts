@@ -159,6 +159,8 @@ export async function getSettingsWithPrefix(db: Db, prefix: string): Promise<Map
 }
 
 export const SETTING_LAST_ACCOUNT = 'last_account_id';
+/** '1' once first-launch setup was finished or skipped. */
+export const SETTING_ONBOARDING_DONE = 'onboarding_done';
 /** '1' after the user turned buckets off (stop suggesting them). */
 export const SETTING_BUCKETS_OFF = 'buckets_off';
 /** 'keypad' (default) or 'text' — how the capture screen opens. */

@@ -4,8 +4,9 @@ Hisaab is **offline-first**: no server, no login, nothing to host. To use it eve
 day you install it as a normal Android app (an **APK**). Expo builds the APK for
 you in the cloud, for free. You don't need Android Studio.
 
-> While developing, keep using Expo Go (`npx expo start --tunnel`). The APK is for
-> daily use, and it's needed for the home-screen widget (Phase 5).
+> While developing you can keep using Expo Go (`npx expo start --go --tunnel` — note the `--go`). The APK
+> is for daily use, and it's the only way to get the **home-screen widget** and the
+> **in-app mic** (they're native features Expo Go doesn't include).
 
 ---
 
@@ -56,7 +57,18 @@ Expo Go and the installed app keep **separate** data. Move it with a backup:
 2. In the **installed Hisaab**: Home → **Settings & backup** → **Restore from file** → pick that file → **Replace with backup**.
 3. Your Gemini key is not in the backup (on purpose). Paste it again in Settings if you use AI.
 
-## 5. Updating the app later
+## 5. Add the home-screen widget
+
+1. Long-press an empty spot on your home screen → **Widgets**.
+2. Find **Hisaab** → **Hisaab quick log**, and drag it onto the home screen.
+3. It shows **Safe to spend today** and your top quick spends (like Chai ₹20).
+   - Tap a spend chip → it's logged instantly, without opening the app. **Undo** shows for 2 minutes.
+   - Tap **+** → the app opens on the keypad.
+   - Tap anywhere else → the app opens.
+
+The chips appear once you've logged the same thing a couple of times.
+
+## 6. Updating the app later
 
 1. Get the new code (`git pull`, `npm install`).
 2. In `app.json`, raise `"version"` (e.g. `1.0.0` → `1.1.0`) **and** `android.versionCode` (`1` → `2`).
@@ -67,6 +79,24 @@ Expo Go and the installed app keep **separate** data. Move it with a backup:
 one now and then anyway.
 
 ---
+
+## For development: a development build (instead of Expo Go)
+
+Expo Go can't run the widget or the in-app mic. To keep live-editing with those:
+
+```bash
+npx eas-cli@latest build -p android --profile development
+```
+
+Install that APK once (it's a "custom Expo Go" just for Hisaab). Then, instead of
+`npx expo start --go --tunnel`, run:
+
+```bash
+npx expo start --dev-client --tunnel
+```
+
+and open the project from the Hisaab development app. Code changes reload as before.
+You only need a new development build when a native package is added.
 
 ## Optional: the Play Store
 

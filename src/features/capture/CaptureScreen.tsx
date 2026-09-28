@@ -21,6 +21,7 @@ import { MIN_TAP, usePalette } from '../../components/theme';
 import { guessCategory } from '../../engine/categoryGuess';
 import { applyKeypadKey, formatINR, formatKeypadInput, inputToPaise, type Paise } from '../../engine/money';
 import { parseEntry } from '../../engine/parser';
+import { startListening, voiceAvailable, type Listening } from './voice';
 import type { Category, CategoryKind } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
@@ -64,6 +65,33 @@ export function CaptureScreen() {
   const [kind, setKind] = useState<CategoryKind>('expense');
   const [hint, setHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // In-app mic (APK only); the keyboard's own mic works everywhere.
+  const [canListen] = useState(voiceAvailable);
+  const [listening, setListening] = useState<Listening | null>(null);
+
+  const toggleMic = async () => {
+    if (listening) {
+      listening.stop();
+      return;
+    }
+    setHint('Listening… say it like “chai bees” or “auto fifty cash”');
+    try {
+      const l = await startListening({
+        onText: (t) => setText(t),
+        onEnd: () => {
+          setListening(null);
+          setHint(null);
+        },
+        onError: (m) => {
+          setListening(null);
+          setHint(m);
+        },
+      });
+      setListening(l);
+    } catch (e) {
+      setHint(e instanceof Error ? e.message : 'Voice is not available.');
+    }
+  };
 
   // Refreshed after each save and on focus, so the guess follows the time of day.
   const [guessTime, setGuessTime] = useState(() => Date.now());
@@ -237,6 +265,7 @@ export function CaptureScreen() {
       <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {topBar}
+          <View style={styles.inputRow}>
           <TextInput
             value={text}
             onChangeText={(t) => {
@@ -254,9 +283,20 @@ export function CaptureScreen() {
             accessibilityLabel="Type an entry"
             style={[styles.textInput, { color: p.text, borderColor: p.accent, backgroundColor: p.surface }]}
           />
+          {canListen && (
+            <Pressable
+              onPress={toggleMic}
+              accessibilityRole="button"
+              accessibilityLabel={listening ? 'Stop listening' : 'Speak an entry'}
+              style={[styles.mic, { backgroundColor: listening ? p.accent : p.accentSoft }]}
+            >
+              <Icon name={listening ? 'stop' : 'microphone-outline'} size={24} color={listening ? p.accentText : p.accent} />
+            </Pressable>
+          )}
+          </View>
           <View style={styles.previewRow}>
             <Text style={[styles.preview, { color: text ? p.text : p.textMuted }]} numberOfLines={2}>
-              {hint ?? (text ? preview || 'Add an amount…' : 'Tip: tap the mic on your keyboard to speak it')}
+              {hint ?? (text ? preview || 'Add an amount…' : canListen ? 'Tip: tap the mic to speak it' : 'Tip: tap the mic on your keyboard to speak it')}
             </Text>
             {modeToggle}
           </View>
@@ -334,7 +374,9 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' },
   chipText: { fontSize: 15, fontWeight: '600' },
   chipInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  textInput: { borderWidth: 2, borderRadius: 14, paddingHorizontal: 14, minHeight: MIN_TAP + 12, fontSize: 22, marginTop: 8 },
+  textInput: { flex: 1, borderWidth: 2, borderRadius: 14, paddingHorizontal: 14, minHeight: MIN_TAP + 12, fontSize: 22, marginTop: 8 },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  mic: { width: MIN_TAP + 8, height: MIN_TAP + 12, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   previewRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
   preview: { flex: 1, fontSize: 16, fontWeight: '600' },
   textBottom: { gap: 10, paddingBottom: 16 },

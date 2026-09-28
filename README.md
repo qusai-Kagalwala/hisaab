@@ -7,7 +7,7 @@ under 3 seconds, split leftover money into buckets, track goals, and
 optionally ask AI what your money can do.
 
 ## Features
-- ⚡ 3-tap expense logging (keypad, text, voice, widget)
+- ⚡ 3-tap expense logging (keypad, typing, voice) and a home-screen widget
 - 🔁 Recurring income and bills with one-tap confirm
 - 🪣 Flexible buckets for leftover money (% and ₹)
 - 🎯 Goals with ETA and what-if slider

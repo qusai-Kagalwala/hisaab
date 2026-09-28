@@ -4,7 +4,7 @@ Claude updates this file at the end of every phase.
 Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Current phase
-Phase 4 — AI + charts + backup ✅ (awaiting owner review) · next: Phase 5 — Widget & polish (needs the APK)
+Phase 5 — Widget & polish ✅ (awaiting owner review on the APK) · all planned phases built
 
 ## Phase 1 — Foundation ✅
 - [x] Expo + TypeScript project setup, lint, Jest
@@ -74,15 +74,22 @@ Notes:
 - [x] Backup export/import (moved up from Phase 5) with preview + undo
 - [x] APK build config (`eas.json`, `android.package`) + `docs/INSTALL.md`
 
-## Phase 5 — Polish ⬜
-- [ ] Android widget (dev build)
-- [ ] Quick-settings tile
-- [ ] Onboarding (3 questions)
+## Phase 5 — Polish ✅
+- [x] Android widget "Hisaab quick log" (react-native-android-widget): safe to spend today, one-tap logging from quick chips with 2-minute Undo, + opens the keypad. Logic in `src/widget/actions.ts` (tested); UI/handler load only when the native module exists
+- [x] In-app mic (expo-speech-recognition, on-device when supported) in typing mode; hidden where unavailable (Expo Go/web) — keyboard mic still works
+- [ ] Quick-settings tile — skipped: the only library is v0.1.0 with an iOS-only dependency; widget + icon cover the need
+- [x] Onboarding: balances + 3 questions (income, fixed bills, bucket template), all skippable; only on a fresh install
 - [x] JSON export/import (done in Phase 4)
-- [ ] Final UX pass + 3-second chai test
+- [x] Final UX pass: icons instead of emojis, app logo, dark-mode check, expo-system-ui for native dark mode, dev-build profile
+- [ ] 3-second chai test — to be timed by the owner on the installed APK
+
+Notes:
+- Not verifiable here: native compile/run of the widget and mic (no Android SDK in this environment). `expo prebuild` was run in a scratch copy and generated the widget receiver, font, preview and mic permission correctly.
+- Entry is now `index.ts` (registers the widget task, then `expo-router/entry`).
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-28 — Phase 5: home-screen widget (tested logic + guarded native UI), in-app mic, onboarding, shared DB snapshot for app+widget, expo-system-ui, dev-build profile, INSTALL updates; quick tile skipped; 226 tests, tsc, lint green; Android+web bundles and prebuild OK — next: owner builds APK and tests widget/mic.
 - 2026-09-28 — Replaced all UI emojis with Material Community Icons (migration 5 for categories), new ₹-tick app logo and adaptive icons, friendlier no-balance Home state — next: Phase 5.
 - 2026-09-28 — Owner feedback: redesigned Ask Hisaab (chip row stretched the screen), Home now explains safe-to-spend step by step (engine `explainSafeToSpend`, always equals the number), new How-it-works page incl. where to add the AI key; 222 tests — next: Phase 5 after APK.
 - 2026-09-28 — Phase 4 built: Gemini (own key, fallback chain, context builder, number guard), AI chat/weekly/Ideas with offline fallbacks, Insights charts, backup export/import, EAS APK config + INSTALL.md; 221 tests, tsc, lint green; Android+web bundles build; browser run-through passed — next: owner builds APK, then Phase 5 (widget).

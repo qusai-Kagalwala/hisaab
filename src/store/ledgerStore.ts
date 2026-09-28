@@ -10,9 +10,6 @@ import {
   confirmPending,
   createBuckets,
   generatePending,
-  listAllBuckets,
-  listPending,
-  listRecurring,
   reopenPending,
   setAllocations,
   setBucketsRemoved,
@@ -27,16 +24,12 @@ import {
   addAccount,
   addTransaction,
   correctTransaction,
-  getSetting,
-  getSettingsWithPrefix,
-  listAccounts,
-  listCategories,
-  listTransactionRows,
   renameAccount,
   setSetting,
   SETTING_BUCKETS_OFF,
   SETTING_CAPTURE_MODE,
   SETTING_LAST_ACCOUNT,
+  SETTING_ONBOARDING_DONE,
   SETTING_ROLLOVER_PREFIX,
   undoNewTransaction,
   type NewTransaction,
@@ -46,22 +39,17 @@ import {
   addGoal,
   deleteContribution,
   learnMerchant,
-  listContributions,
-  listGoals,
-  listMerchantMemory,
-  listRecurringTransactionIds,
   setGoalStatus,
   updateGoal,
 } from '../db/smartQueries';
+import { readSnapshot } from '../db/snapshot';
 import type { Db } from '../db/types';
 import {
   activeBuckets,
   BUCKET_TEMPLATES,
   bucketForCategory,
-  computeMoneyPicture,
   coverOverspend,
   moveBetweenBuckets,
-  safeToSpend,
   splitByPercent,
   type AllocationChange,
   type Bucket,
@@ -70,16 +58,16 @@ import {
   type SafeToSpend,
   type TemplateId,
 } from '../engine/buckets';
-import { monthKey, monthStartMs, shiftMonth, type MonthKey } from '../engine/calendar';
+import { monthKey, type MonthKey } from '../engine/calendar';
 import { ADJUSTMENT_CATEGORY } from '../engine/defaults';
-import { balanceAdjustment, computeBalances, resolveTransactions, type CorrectionInput } from '../engine/ledger';
-import { goalStatus, setAsideForGoals, splitContribution, type GoalStatus } from '../engine/goals';
-import { computeInsights, everydayExpenses, spendingByCategory, type Insight } from '../engine/insights';
+import { balanceAdjustment, type CorrectionInput } from '../engine/ledger';
+import { splitContribution, type GoalStatus } from '../engine/goals';
+import type { Insight } from '../engine/insights';
 import type { Paise } from '../engine/money';
 import type { MerchantMemory } from '../engine/parser';
-import { lastEntry, quickPicks, type QuickPick } from '../engine/quickPicks';
+import type { QuickPick } from '../engine/quickPicks';
 import { leftoverBuckets, planRollover, rolloverSource, type RolloverChoice } from '../engine/rollover';
-import { reservedThisMonth, type Recurring } from '../engine/recurring';
+import type { Recurring } from '../engine/recurring';
 import type { Account, AccountType, Category, EffectiveTransaction } from '../engine/types';
 
 export interface RolloverState {
@@ -113,6 +101,8 @@ interface LedgerState {
   /** Everyday spending this month by category (for chat). */
   monthSpending: Map<number | null, Paise>;
   captureMode: 'keypad' | 'text';
+  needsOnboarding: boolean;
+  finishOnboarding: (db: Db) => Promise<void>;
   /** Transactions from confirmed bills/income (left out of everyday stats). */
   recurringTxIds: Set<number>;
 
@@ -164,6 +154,12 @@ function previousAllocations(buckets: readonly Bucket[], changes: readonly Alloc
   return changes.map((c) => ({ id: c.id, allocated_paise: buckets.find((b) => b.id === c.id)?.allocated_paise ?? 0 }));
 }
 
+/** Hook for side effects after every reload (e.g. refreshing the home-screen widget). */
+let onLedgerChanged: ((db: Db) => void) | null = null;
+export function setOnLedgerChanged(fn: (db: Db) => void): void {
+  onLedgerChanged = fn;
+}
+
 export const useLedgerStore = create<LedgerState>((set, get) => ({
   loaded: false,
   month: monthKey(Date.now()),
@@ -187,90 +183,38 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   lastEntry: null,
   monthSpending: new Map(),
   captureMode: 'keypad',
+  needsOnboarding: false,
   recurringTxIds: new Set(),
 
   load: async (db) => {
     const now = Date.now();
     await generatePending(db, now);
-    const [goalsRaw, contributions, merchantMemory, recurringTxIds, modeRaw] = await Promise.all([
-      listGoals(db),
-      listContributions(db),
-      listMerchantMemory(db),
-      listRecurringTransactionIds(db),
-      getSetting(db, SETTING_CAPTURE_MODE),
-    ]);
-    const goals = goalsRaw.map((g) => goalStatus(g, contributions, now));
-    const goalsPaise = setAsideForGoals(goals);
-    const [accounts, categories, rows, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
-      listAccounts(db),
-      listCategories(db),
-      listTransactionRows(db),
-      getSetting(db, SETTING_LAST_ACCOUNT),
-      listAllBuckets(db),
-      listRecurring(db),
-      listPending(db),
-      getSettingsWithPrefix(db, SETTING_ROLLOVER_PREFIX),
-      getSetting(db, SETTING_BUCKETS_OFF),
-    ]);
-    const transactions = resolveTransactions(rows);
-    const balances = computeBalances(accounts.map((a) => a.id), transactions);
-    const last = lastRaw == null ? null : Number(lastRaw);
-    const lastAccountId = accounts.some((a) => a.id === last) ? last : accounts[0]?.id ?? null;
-
-    const month = monthKey(now);
-    const reserved = reservedThisMonth(recurring, pending, now);
-    const pictureFor = (buckets: Bucket[]) =>
-      computeMoneyPicture({ balances, buckets, transactions, reserved_paise: reserved, goals_paise: goalsPaise });
-    const picture = pictureFor(activeBuckets(allBuckets, month));
+    const snap = await readSnapshot(db, now);
 
     // New month with no buckets yet, but an earlier month had some → rollover.
     let rollover: RolloverState | null = null;
-    {
-      const fromMonth = rolloverSource(allBuckets, month);
-      if (fromMonth) {
-        const previous = pictureFor(activeBuckets(allBuckets, fromMonth)).buckets;
-        const rememberedChoices = new Map(
-          [...remembered].filter(([, v]) => v === 'keep' || v === 'savings' || v === 'flexible') as [string, RolloverChoice][],
-        );
-        const undecided = leftoverBuckets(previous).filter((b) => !rememberedChoices.has(b.name));
-        if (undecided.length === 0) {
-          // Every leftover has a remembered choice (or there are none): apply it.
-          const choices = new Map(previous.map((b) => [b.id, rememberedChoices.get(b.name) ?? 'keep']));
-          await createBuckets(db, month, planRollover(previous, choices));
-          return get().load(db);
-        }
-        rollover = { fromMonth, buckets: previous, remembered: rememberedChoices };
+    const fromMonth = rolloverSource(snap.allBuckets, snap.month);
+    if (fromMonth) {
+      const previous = snap.pictureFor(activeBuckets(snap.allBuckets, fromMonth)).buckets;
+      const rememberedChoices = new Map(
+        [...snap.rememberedRollover].filter(([, v]) => v === 'keep' || v === 'savings' || v === 'flexible') as [
+          string,
+          RolloverChoice,
+        ][],
+      );
+      const undecided = leftoverBuckets(previous).filter((b) => !rememberedChoices.has(b.name));
+      if (undecided.length === 0) {
+        // Every leftover has a remembered choice (or there are none): apply it.
+        const choices = new Map(previous.map((b) => [b.id, rememberedChoices.get(b.name) ?? 'keep']));
+        await createBuckets(db, snap.month, planRollover(previous, choices));
+        return get().load(db);
       }
+      rollover = { fromMonth, buckets: previous, remembered: rememberedChoices };
     }
 
-    set({
-      loaded: true,
-      month,
-      accounts,
-      categories,
-      transactions,
-      balances,
-      lastAccountId,
-      allBuckets,
-      recurring,
-      pending,
-      picture,
-      safe: safeToSpend(picture, now),
-      rollover,
-      bucketsOff: offRaw === '1',
-      goals,
-      merchantMemory,
-      insights: computeInsights({
-        transactions, excludedIds: recurringTxIds, categories, buckets: picture.buckets, nowMs: now,
-      }),
-      quickPicks: quickPicks(transactions, now, recurringTxIds),
-      lastEntry: lastEntry(transactions, recurringTxIds),
-      monthSpending: spendingByCategory(
-        everydayExpenses(transactions, recurringTxIds), monthStartMs(month), monthStartMs(shiftMonth(month, 1)),
-      ),
-      captureMode: modeRaw === 'text' ? 'text' : 'keypad',
-      recurringTxIds,
-    });
+    const { pictureFor: _pictureFor, rememberedRollover: _remembered, now: _now, ...state } = snap;
+    set({ ...state, loaded: true, rollover });
+    onLedgerChanged?.(db);
   },
 
   saveTransaction: async (db, tx, options) => {
@@ -306,6 +250,11 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     }
     await get().load(db);
     return id;
+  },
+
+  finishOnboarding: async (db) => {
+    await setSetting(db, SETTING_ONBOARDING_DONE, '1');
+    set({ needsOnboarding: false });
   },
 
   setCaptureMode: async (db, mode) => {

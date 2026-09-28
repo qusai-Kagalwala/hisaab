@@ -54,4 +54,10 @@ Add new entries at the bottom: date, decision, reason.
 | 47 | In-app "How Hisaab works" page (/about) with a step-by-step AI key guide; linked from Home, Settings and the chat empty state | Owner asked where to add the key and how to use the app |
 | 48 | No emojis in the UI: one icon family (Material Community Icons via @expo/vector-icons) everywhere; categories store icon names (migration 5), with text fallback for old emoji values | Owner: emojis look "AI-like" and unpolished |
 | 49 | App logo: white ₹ whose leg flows into a mint tick on brand green (#1F7A5C), used for launcher, adaptive and monochrome icons, favicon | A real identity for the APK instead of Expo placeholders |
+| 50 | Home-screen widget logs only preset quick chips (Android widgets can't take text input); + opens the keypad; Undo lasts 2 minutes on the widget | Honest platform limit; keeps logging to one tap |
+| 51 | Native-only features (widget, in-app mic) are loaded lazily and only if their native module exists; Expo Go and web keep working without them | Expo Go crashes on missing native modules |
+| 52 | One `readSnapshot()` derives everything from the DB for both the app store and the widget background task | No duplicated money logic |
+| 53 | Quick-settings tile not built (only library is v0.1.0 with an iOS-only dependency) | Avoid fragile native code that could break the APK build |
+| 54 | Onboarding = balances + the SPEC's 3 questions, all skippable; shown only on a truly fresh install (no entries, bills or buckets) | Safe-to-spend needs a starting balance; existing users never see it |
+| 55 | `expo-system-ui` added so `userInterfaceStyle: automatic` (dark mode) works in native builds | Found by `expo prebuild` |
 

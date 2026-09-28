@@ -7,10 +7,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePalette } from '../components/theme';
 import { UndoToast } from '../components/UndoToast';
 import { migrate } from '../db/migrations';
+import { DATABASE_NAME } from '../db/name';
 import { useAiStore } from '../store/aiStore';
 import { useLedgerStore } from '../store/ledgerStore';
 
-export const DATABASE_NAME = 'hisaab.db';
 
 export default function RootLayout() {
   return (
@@ -90,6 +90,7 @@ function AppStack() {
         <Stack.Screen name="ideas" options={{ title: 'Ideas' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings & backup' }} />
         <Stack.Screen name="about" options={{ title: 'How Hisaab works' }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       </Stack>
       <UndoToast />
     </View>
