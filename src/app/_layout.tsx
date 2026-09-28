@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePalette } from '../components/theme';
 import { UndoToast } from '../components/UndoToast';
@@ -32,6 +32,12 @@ function LedgerLoader({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     load(db).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+    // Coming back to the app may be a new day or month: due bills, rollover,
+    // safe-to-spend all depend on the date.
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') load(db).catch(() => undefined);
+    });
+    return () => sub.remove();
   }, [db, load]);
 
   if (!loaded) {
@@ -65,6 +71,14 @@ function AppStack() {
         <Stack.Screen name="history" options={{ title: 'History' }} />
         <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
         <Stack.Screen name="edit/[id]" options={{ title: 'Edit', presentation: 'modal' }} />
+        <Stack.Screen name="home" options={{ title: 'Home' }} />
+        <Stack.Screen name="buckets/index" options={{ title: 'Buckets' }} />
+        <Stack.Screen name="buckets/plan" options={{ title: 'Plan your month' }} />
+        <Stack.Screen name="buckets/move" options={{ title: 'Move money' }} />
+        <Stack.Screen name="buckets/[id]" options={{ title: 'Bucket' }} />
+        <Stack.Screen name="rollover" options={{ title: 'New month' }} />
+        <Stack.Screen name="recurring/index" options={{ title: 'Bills & income' }} />
+        <Stack.Screen name="recurring/edit" options={{ title: 'Add bill or income' }} />
       </Stack>
       <UndoToast />
     </View>

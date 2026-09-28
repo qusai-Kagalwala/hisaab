@@ -1,4 +1,4 @@
-import { DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../engine/defaults';
+import { ADJUSTMENT_CATEGORY, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../engine/defaults';
 import type { Db } from './types';
 
 /**
@@ -122,19 +122,43 @@ const MIGRATIONS: readonly ((db: Db) => Promise<void>)[] = [
       );
     }
   },
+
+  // 2 — money model: bucket roles and category lists, recurring names and
+  // anchor days, pending ↔ transaction link, hidden Balance update category.
+  async (db) => {
+    await db.execAsync(`
+      ALTER TABLE buckets ADD COLUMN role TEXT CHECK (role IN ('flexible', 'savings'));
+      ALTER TABLE buckets ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE buckets ADD COLUMN categories_json TEXT NOT NULL DEFAULT '[]';
+      CREATE UNIQUE INDEX idx_buckets_month_name ON buckets(period_month, name);
+
+      ALTER TABLE recurring ADD COLUMN name TEXT NOT NULL DEFAULT '';
+      ALTER TABLE recurring ADD COLUMN anchor_day INTEGER NOT NULL DEFAULT 1;
+
+      ALTER TABLE pending_recurring ADD COLUMN transaction_id INTEGER REFERENCES transactions(id);
+      CREATE UNIQUE INDEX idx_pending_unique ON pending_recurring(recurring_id, due_date);
+
+      ALTER TABLE categories ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+    `);
+    await db.runAsync(
+      `INSERT INTO categories (id, name, icon, kind, keywords_json, is_default, hidden)
+       VALUES (?, ?, ?, 'expense', '[]', 1, 1)`,
+      ADJUSTMENT_CATEGORY.id, ADJUSTMENT_CATEGORY.name, ADJUSTMENT_CATEGORY.icon,
+    );
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS.length;
 
 /** Bring the database up to date. Safe to call on every app start. */
-export async function migrate(db: Db): Promise<void> {
+export async function migrate(db: Db, targetVersion = LATEST_SCHEMA_VERSION): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let version = row?.user_version ?? 0;
   if (version > LATEST_SCHEMA_VERSION) {
     throw new Error(`Database version ${version} is newer than this app (${LATEST_SCHEMA_VERSION})`);
   }
-  while (version < LATEST_SCHEMA_VERSION) {
+  while (version < targetVersion) {
     const next = version + 1;
     await db.withTransactionAsync(async () => {
       await MIGRATIONS[version](db);

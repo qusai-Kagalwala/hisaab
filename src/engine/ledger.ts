@@ -3,7 +3,7 @@
  * holding the full replacement values; a deletion is a correction with amount 0.
  * Balances are always computed from rows, never stored.
  */
-import { addPaise, assertPaise, type Paise } from './money';
+import { addPaise, assertPaise, subtractPaise, type Paise } from './money';
 import type { EffectiveTransaction, TransactionRow } from './types';
 
 /**
@@ -96,6 +96,8 @@ export interface CorrectionInput {
   category_id: number | null;
   amount_paise: Paise;
   note: string | null;
+  /** Omit to keep the current bucket. */
+  bucket_id?: number | null;
 }
 
 /**
@@ -105,11 +107,13 @@ export interface CorrectionInput {
 export function buildCorrection(
   current: EffectiveTransaction,
   next: CorrectionInput,
-): (CorrectionInput & { corrects_id: number; bucket_id: number | null }) | null {
+): (Omit<CorrectionInput, 'bucket_id'> & { corrects_id: number; bucket_id: number | null }) | null {
   assertPaise(next.amount_paise);
   if (next.amount_paise < 0) throw new Error('Amount cannot be negative');
   const note = next.note?.trim() ? next.note.trim() : null;
+  const bucketId = next.bucket_id === undefined ? current.bucket_id : next.bucket_id;
   const unchanged =
+    current.bucket_id === bucketId &&
     current.account_id === next.account_id &&
     current.category_id === next.category_id &&
     current.amount_paise === next.amount_paise &&
@@ -119,10 +123,24 @@ export function buildCorrection(
     corrects_id: current.id,
     account_id: next.account_id,
     category_id: next.category_id,
-    bucket_id: current.bucket_id,
+    bucket_id: bucketId,
     amount_paise: next.amount_paise,
     note,
   };
+}
+
+/**
+ * "What's in this account right now?" → the entry that makes the computed
+ * balance match, or null when it already does. Logged under the hidden
+ * Balance adjustment category so insights can ignore it.
+ */
+export function balanceAdjustment(
+  currentBalance: Paise,
+  actualBalance: Paise,
+): { type: 'income' | 'expense'; amount_paise: Paise } | null {
+  const diff = subtractPaise(actualBalance, currentBalance);
+  if (diff === 0) return null;
+  return diff > 0 ? { type: 'income', amount_paise: diff } : { type: 'expense', amount_paise: -diff };
 }
 
 // ---------------------------------------------------------------------------

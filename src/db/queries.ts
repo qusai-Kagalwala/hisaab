@@ -49,11 +49,12 @@ interface CategoryRow {
   kind: CategoryKind;
   keywords_json: string;
   is_default: number;
+  hidden: number;
 }
 
 export async function listCategories(db: Db): Promise<Category[]> {
   const rows = await db.getAllAsync<CategoryRow>(
-    'SELECT id, name, icon, kind, keywords_json, is_default FROM categories ORDER BY id',
+    'SELECT id, name, icon, kind, keywords_json, is_default, hidden FROM categories ORDER BY id',
   );
   return rows.map((r) => ({
     id: r.id,
@@ -62,6 +63,7 @@ export async function listCategories(db: Db): Promise<Category[]> {
     kind: r.kind,
     keywords: JSON.parse(r.keywords_json) as string[],
     is_default: r.is_default === 1,
+    hidden: r.hidden === 1,
   }));
 }
 
@@ -76,6 +78,7 @@ export interface NewTransaction {
   amount_paise: Paise;
   note?: string | null;
   created_at?: number;
+  bucket_id?: number | null;
 }
 
 export async function addTransaction(db: Db, tx: NewTransaction): Promise<number> {
@@ -83,8 +86,8 @@ export async function addTransaction(db: Db, tx: NewTransaction): Promise<number
   if (tx.amount_paise <= 0) throw new Error('Amount must be greater than zero');
   const result = await db.runAsync(
     `INSERT INTO transactions (account_id, category_id, bucket_id, amount_paise, type, note, created_at, corrects_id)
-     VALUES (?, ?, NULL, ?, ?, ?, ?, NULL)`,
-    tx.account_id, tx.category_id, tx.amount_paise, tx.type,
+     VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+    tx.account_id, tx.category_id, tx.bucket_id ?? null, tx.amount_paise, tx.type,
     tx.note?.trim() || null, tx.created_at ?? Date.now(),
   );
   return result.lastInsertRowId;
@@ -148,4 +151,13 @@ export async function setSetting(db: Db, key: string, value: string): Promise<vo
   );
 }
 
+export async function getSettingsWithPrefix(db: Db, prefix: string): Promise<Map<string, string>> {
+  const rows = await db.getAllAsync<{ key: string; value: string }>(
+    "SELECT key, value FROM settings WHERE substr(key, 1, length(?)) = ?", prefix, prefix,
+  );
+  return new Map(rows.map((r) => [r.key.slice(prefix.length), r.value]));
+}
+
 export const SETTING_LAST_ACCOUNT = 'last_account_id';
+/** Remembered month-end choice per bucket name: `rollover:<name>` → keep|savings|flexible. */
+export const SETTING_ROLLOVER_PREFIX = 'rollover:';

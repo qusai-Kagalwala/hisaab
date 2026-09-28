@@ -6,6 +6,8 @@ import { AccountChips } from '../../components/AccountChips';
 import { CategoryGrid } from '../../components/CategoryGrid';
 import { Keypad } from '../../components/Keypad';
 import { MIN_TAP, usePalette } from '../../components/theme';
+import { Chip } from '../../components/ui';
+import { monthKey } from '../../engine/calendar';
 import { applyKeypadKey, formatINR, formatKeypadInput, inputToPaise, paiseToInput } from '../../engine/money';
 import type { EffectiveTransaction } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
@@ -44,20 +46,31 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
   const correct = useLedgerStore((s) => s.correct);
   const showUndo = useUndoStore((s) => s.show);
 
+  const allBuckets = useLedgerStore((s) => s.allBuckets);
   const kind = tx.type === 'income' ? 'income' : 'expense';
+  // Buckets of the month the entry happened in; only expenses draw from buckets.
+  const monthBuckets = useMemo(
+    () => (kind === 'expense' ? allBuckets.filter((b) => b.period_month === monthKey(tx.occurred_at)) : []),
+    [allBuckets, kind, tx.occurred_at],
+  );
+  const [bucketId, setBucketId] = useState<number | null>(tx.bucket_id);
   const [input, setInput] = useState(paiseToInput(tx.amount_paise));
   const [categoryId, setCategoryId] = useState(tx.category_id);
   const [accountId, setAccountId] = useState(tx.account_id);
   const [note, setNote] = useState(tx.note ?? '');
   const [busy, setBusy] = useState(false);
 
-  const visibleCategories = useMemo(() => categories.filter((c) => c.kind === kind), [categories, kind]);
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.kind === kind && !c.hidden),
+    [categories, kind],
+  );
   const amountPaise = inputToPaise(input);
   const previous = {
     account_id: tx.account_id,
     category_id: tx.category_id,
     amount_paise: tx.amount_paise,
     note: tx.note,
+    bucket_id: tx.bucket_id,
   };
 
   /** Restore `previous` by appending another correction on top of the latest state. */
@@ -75,6 +88,7 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
         category_id: categoryId,
         amount_paise: amountPaise,
         note,
+        bucket_id: bucketId,
       });
       if (correctionId != null) showUndo(`Updated to ${formatINR(amountPaise)}`, restore);
       router.back();
@@ -115,6 +129,15 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
         highlightedId={categoryId}
         onPress={(c) => setCategoryId(c.id)}
       />
+      {monthBuckets.length > 0 && (
+        <View style={styles.chips}>
+          <Text style={{ color: p.textMuted }}>From bucket:</Text>
+          {monthBuckets.map((b) => (
+            <Chip key={b.id} label={b.name} selected={bucketId === b.id} onPress={() => setBucketId(b.id)} />
+          ))}
+          <Chip label="None" selected={bucketId == null} onPress={() => setBucketId(null)} />
+        </View>
+      )}
       <TextInput
         value={note}
         onChangeText={setNote}
@@ -142,6 +165,7 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
 
 const styles = StyleSheet.create({
   missing: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   content: { padding: 12, gap: 12, paddingBottom: 40 },
   when: { textAlign: 'center', marginTop: 4 },
   amount: { fontSize: 44, fontWeight: '700', textAlign: 'center', fontVariant: ['tabular-nums'] },

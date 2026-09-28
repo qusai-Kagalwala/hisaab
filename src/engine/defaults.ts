@@ -31,6 +31,10 @@ export interface DefaultCategory {
   keywords: string[];
 }
 
+/**
+ * Seeded by migration 1. Frozen: changing this list would change what
+ * migration 1 does on new installs. Add categories in a new migration.
+ */
 export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
   { id: CATEGORY_ID.food, name: 'Food', icon: '🍛', kind: 'expense',
     keywords: ['food', 'lunch', 'dinner', 'breakfast', 'khana', 'thali', 'biryani', 'swiggy', 'zomato', 'restaurant', 'dhaba'] },
@@ -63,6 +67,13 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
     keywords: ['gift', 'shagun', 'birthday'] },
   { id: CATEGORY_ID.otherIncome, name: 'Other income', icon: '💰', kind: 'income', keywords: [] },
 ];
+
+/** Hidden category for "update balance" entries (added in migration 2). */
+export const ADJUSTMENT_CATEGORY = {
+  id: 17,
+  name: 'Balance update',
+  icon: '⚖️',
+} as const;
 
 export interface DefaultAccount {
   id: number;

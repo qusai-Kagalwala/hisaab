@@ -1,4 +1,4 @@
-import { CATEGORY_ID, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../../engine/defaults';
+import { ADJUSTMENT_CATEGORY, CATEGORY_ID, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../../engine/defaults';
 import { computeBalances, resolveTransactions } from '../../engine/ledger';
 import { LATEST_SCHEMA_VERSION, migrate } from '../migrations';
 import {
@@ -24,6 +24,14 @@ async function freshDb(): Promise<Db> {
   return db;
 }
 
+/** Insert the way Phase 1 did (before migration 2 columns existed). */
+async function addTransactionV1(db: Db) {
+  await db.runAsync(
+    `INSERT INTO transactions (account_id, category_id, bucket_id, amount_paise, type, note, created_at, corrects_id)
+     VALUES (1, 2, NULL, 4000, 'expense', NULL, 1, NULL)`,
+  );
+}
+
 async function effective(db: Db) {
   return resolveTransactions(await listTransactionRows(db));
 }
@@ -35,8 +43,20 @@ describe('migrations', () => {
     expect(version?.user_version).toBe(LATEST_SCHEMA_VERSION);
     expect(await listAccounts(db)).toHaveLength(DEFAULT_ACCOUNTS.length);
     const categories = await listCategories(db);
-    expect(categories).toHaveLength(DEFAULT_CATEGORIES.length);
+    expect(categories).toHaveLength(DEFAULT_CATEGORIES.length + 1);
+    expect(categories.filter((c) => c.hidden).map((c) => c.id)).toEqual([ADJUSTMENT_CATEGORY.id]);
     expect(categories.find((c) => c.id === CATEGORY_ID.chai)?.keywords).toContain('chai');
+  });
+
+  it('upgrades a Phase 1 database without losing entries', async () => {
+    const db = createTestDb();
+    await migrate(db, 1);
+    await addTransactionV1(db);
+    await migrate(db);
+    const rows = await listTransactionRows(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ amount_paise: 4_000, bucket_id: null });
+    expect((await listCategories(db)).find((c) => c.id === CATEGORY_ID.chai)?.hidden).toBe(false);
   });
 
   it('is idempotent', async () => {
