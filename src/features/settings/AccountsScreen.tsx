@@ -2,9 +2,11 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MIN_TAP, usePalette } from '../../components/theme';
-import { formatINR } from '../../engine/money';
+import { Button, MoneyField } from '../../components/ui';
+import { formatINR, inputToPaise, paiseToInput } from '../../engine/money';
 import type { Account, AccountType } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
+import { useUndoStore } from '../../store/undoStore';
 
 const TYPE_LABEL: Record<AccountType, string> = {
   cash: 'Cash',
@@ -36,7 +38,8 @@ export function AccountsScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={[styles.caption, { color: p.textMuted }]}>
-        Balances are worked out from what you log. Tap a name to rename it.
+        Balances are worked out from what you log. Tap a balance to set what&apos;s really there right now; tap a
+        name to rename it.
       </Text>
       {accounts.map((a) => (
         <AccountRow key={a.id} account={a} balance={balances.get(a.id) ?? 0} />
@@ -85,8 +88,23 @@ function AccountRow({ account, balance }: { account: Account; balance: number })
   const db = useSQLiteContext();
   const p = usePalette();
   const renameAccount = useLedgerStore((s) => s.renameAccount);
+  const adjustBalance = useLedgerStore((s) => s.adjustBalance);
+  const undoNew = useLedgerStore((s) => s.undoNew);
+  const showUndo = useUndoStore((s) => s.show);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(account.name);
+  const [updating, setUpdating] = useState(false);
+  const [actual, setActual] = useState('');
+
+  const onUpdateBalance = async () => {
+    const id = await adjustBalance(db, account.id, inputToPaise(actual));
+    setUpdating(false);
+    if (id != null) {
+      showUndo(`${account.name} set to ${formatINR(inputToPaise(actual))}`, async () => {
+        await undoNew(db, id);
+      });
+    }
+  };
 
   const commit = async () => {
     setEditing(false);
@@ -95,7 +113,8 @@ function AccountRow({ account, balance }: { account: Account; balance: number })
   };
 
   return (
-    <View style={[styles.row, { backgroundColor: p.surface, borderColor: p.border }]}>
+    <View style={[styles.card, { backgroundColor: p.surface, borderColor: p.border }]}>
+    <View style={styles.row}>
       <View style={{ flex: 1 }}>
         {editing ? (
           <TextInput
@@ -114,7 +133,26 @@ function AccountRow({ account, balance }: { account: Account; balance: number })
         )}
         <Text style={{ color: p.textMuted, fontSize: 12 }}>{TYPE_LABEL[account.type]}</Text>
       </View>
-      <Text style={[styles.balance, { color: p.text }]}>{formatINR(balance)}</Text>
+      <Pressable
+        onPress={() => {
+          setActual(balance > 0 ? paiseToInput(balance) : '');
+          setUpdating((u) => !u);
+        }}
+        accessibilityRole="button"
+        accessibilityHint="Update balance"
+        hitSlop={8}
+      >
+        <Text style={[styles.balance, { color: p.text }]}>{formatINR(balance)}</Text>
+        <Text style={{ color: p.accent, fontSize: 12, textAlign: 'right' }}>Update</Text>
+      </Pressable>
+    </View>
+    {updating && (
+      <View style={styles.update}>
+        <Text style={{ color: p.textMuted }}>How much is in {account.name} right now?</Text>
+        <MoneyField value={actual} onChange={setActual} autoFocus />
+        <Button label="Set balance" compact onPress={onUpdateBalance} />
+      </View>
+    )}
     </View>
   );
 }
@@ -123,15 +161,9 @@ const styles = StyleSheet.create({
   content: { padding: 12, gap: 10, paddingBottom: 40 },
   caption: { fontSize: 13, marginBottom: 4 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 16 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 64,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
+  update: { gap: 8, marginTop: 10 },
   rowName: { fontSize: 16, fontWeight: '600' },
   rowInput: { borderBottomWidth: 1, paddingVertical: 2 },
   balance: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'] },

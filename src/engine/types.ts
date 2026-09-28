@@ -18,6 +18,8 @@ export interface Category {
   kind: CategoryKind;
   keywords: string[];
   is_default: boolean;
+  /** Hidden from pickers (e.g. Balance update). */
+  hidden: boolean;
 }
 
 /**

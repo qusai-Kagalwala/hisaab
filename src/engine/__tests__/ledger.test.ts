@@ -1,4 +1,4 @@
-import { buildCorrection, computeBalances, groupByDay, resolveTransactions, signedAmount } from '../ledger';
+import { balanceAdjustment, buildCorrection, computeBalances, groupByDay, resolveTransactions, signedAmount } from '../ledger';
 import type { TransactionRow } from '../types';
 
 let nextId = 1;
@@ -126,5 +126,23 @@ describe('groupByDay', () => {
     expect(groups[0].transactions).toHaveLength(3);
     expect(groups[0].spent).toBe(5_500);
     expect(groups[1].spent).toBe(2_000);
+  });
+});
+
+describe('balanceAdjustment', () => {
+  it('logs only the difference', () => {
+    expect(balanceAdjustment(-4_000, 50_000)).toEqual({ type: 'income', amount_paise: 54_000 });
+    expect(balanceAdjustment(50_000, 20_000)).toEqual({ type: 'expense', amount_paise: 30_000 });
+    expect(balanceAdjustment(1_000, 1_000)).toBeNull();
+  });
+});
+
+describe('buildCorrection bucket', () => {
+  it('keeps the bucket unless one is given', () => {
+    const [current] = resolveTransactions([row({ bucket_id: 3 })]);
+    const base = { account_id: 1, category_id: 1, amount_paise: 1_000, note: null };
+    expect(buildCorrection(current, base)).toBeNull();
+    expect(buildCorrection(current, { ...base, bucket_id: 4 })?.bucket_id).toBe(4);
+    expect(buildCorrection(current, { ...base, bucket_id: null })?.bucket_id).toBeNull();
   });
 });

@@ -6,16 +6,18 @@ interface Props {
   categories: Category[];
   /** Highlighted category (the guess on capture, the current one on edit). */
   highlightedId: number | null;
+  /** Multi-select mode (e.g. bucket categories). */
+  selectedIds?: number[];
   onPress: (category: Category) => void;
   columns?: number;
 }
 
-export function CategoryGrid({ categories, highlightedId, onPress, columns = 4 }: Props) {
+export function CategoryGrid({ categories, highlightedId, selectedIds, onPress, columns = 4 }: Props) {
   const p = usePalette();
   return (
     <View style={styles.grid}>
       {categories.map((c) => {
-        const highlighted = c.id === highlightedId;
+        const highlighted = c.id === highlightedId || !!selectedIds?.includes(c.id);
         return (
           <Pressable
             key={c.id}

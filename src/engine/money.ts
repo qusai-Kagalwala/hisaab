@@ -74,6 +74,15 @@ export function applyKeypadKey(input: string, key: KeypadKey): string {
   return input + key;
 }
 
+/** Clean free-typed text (e.g. from a TextInput) into canonical keypad input. */
+export function normalizeAmountText(text: string): string {
+  let input = '';
+  for (const ch of text) {
+    if (/[0-9.]/.test(ch)) input = applyKeypadKey(input, ch as KeypadKey);
+  }
+  return input;
+}
+
 /**
  * Convert a keypad string ("450", "12.5", "0.05", "7.") to paise using
  * string arithmetic only. Returns 0 for empty input.

@@ -5,6 +5,7 @@ import {
   formatKeypadInput,
   groupIndian,
   inputToPaise,
+  normalizeAmountText,
   paiseToInput,
   rupees,
   subtractPaise,
@@ -116,5 +117,14 @@ describe('arithmetic', () => {
     expect(rupees(40)).toBe(4_000);
     expect(() => addPaise(0.1, 0.2)).toThrow();
     expect(() => rupees(1.5)).toThrow();
+  });
+});
+
+describe('normalizeAmountText', () => {
+  it('cleans typed text into keypad input', () => {
+    expect(normalizeAmountText('₹1,50,000')).toBe('150000');
+    expect(normalizeAmountText('12.345')).toBe('12.34');
+    expect(normalizeAmountText('0012')).toBe('12');
+    expect(normalizeAmountText('abc')).toBe('');
   });
 });

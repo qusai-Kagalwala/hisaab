@@ -1,4 +1,4 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountChips } from '../../components/AccountChips';
 import { CategoryGrid } from '../../components/CategoryGrid';
 import { Keypad } from '../../components/Keypad';
+import { OverspendCard } from '../../components/OverspendCard';
 import { usePalette } from '../../components/theme';
 import { guessCategory } from '../../engine/categoryGuess';
 import { applyKeypadKey, formatINR, formatKeypadInput, inputToPaise } from '../../engine/money';
@@ -33,7 +34,12 @@ export function CaptureScreen() {
   const [hint, setHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const visibleCategories = useMemo(() => categories.filter((c) => c.kind === kind), [categories, kind]);
+  const safe = useLedgerStore((s) => s.safe);
+  const attention = useLedgerStore((s) => s.pending.length + (s.rollover ? 1 : 0));
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.kind === kind && !c.hidden),
+    [categories, kind],
+  );
   // Refreshed after each save and whenever the screen regains focus, so the
   // guess follows the time of day.
   const [guessTime, setGuessTime] = useState(() => Date.now());
@@ -75,11 +81,23 @@ export function CaptureScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
       <View style={styles.topBar}>
-        <Link href="/accounts" asChild>
-          <Pressable hitSlop={8} style={styles.navButton} accessibilityRole="link">
-            <Text style={[styles.navText, { color: p.textMuted }]}>Accounts</Text>
-          </Pressable>
-        </Link>
+        <Pressable
+          onPress={() => router.push('/home')}
+          hitSlop={8}
+          style={[styles.pill, { backgroundColor: p.accentSoft }]}
+          accessibilityRole="button"
+          accessibilityLabel={`Safe to spend today ${formatINR(safe.per_day_paise, { paise: 'never' })}. Open home`}
+        >
+          <Text style={[styles.pillLabel, { color: p.accent }]}>Today</Text>
+          <Text style={[styles.pillAmount, { color: p.accent }]}>
+            {formatINR(safe.per_day_paise, { paise: 'never' })}
+          </Text>
+          {attention > 0 && (
+            <View style={[styles.badge, { backgroundColor: p.accent }]}>
+              <Text style={[styles.badgeText, { color: p.accentText }]}>{attention}</Text>
+            </View>
+          )}
+        </Pressable>
         <View style={[styles.segment, { borderColor: p.border }]}>
           {(['expense', 'income'] as const).map((k) => (
             <Pressable
@@ -95,11 +113,14 @@ export function CaptureScreen() {
             </Pressable>
           ))}
         </View>
-        <Link href="/history" asChild>
-          <Pressable hitSlop={8} style={styles.navButton} accessibilityRole="link">
-            <Text style={[styles.navText, { color: p.textMuted }]}>History</Text>
-          </Pressable>
-        </Link>
+        <Pressable
+          onPress={() => router.push('/history')}
+          hitSlop={8}
+          style={styles.navButton}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.navText, { color: p.textMuted }]}>History</Text>
+        </Pressable>
       </View>
 
       <View style={styles.amountArea}>
@@ -117,6 +138,7 @@ export function CaptureScreen() {
       </View>
 
       <View style={styles.bottom}>
+        <OverspendCard />
         <AccountChips
           accounts={accounts}
           selectedId={lastAccountId}
@@ -140,6 +162,11 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
   navButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
   navText: { fontSize: 15, fontWeight: '500' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, borderRadius: 999, paddingHorizontal: 12 },
+  pillLabel: { fontSize: 12, fontWeight: '600' },
+  pillAmount: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  badge: { minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  badgeText: { fontSize: 11, fontWeight: '800' },
   segment: { flexDirection: 'row', borderWidth: 1, borderRadius: 999, overflow: 'hidden' },
   segmentItem: { paddingHorizontal: 14, paddingVertical: 8 },
   amountArea: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 90 },
