@@ -146,6 +146,11 @@ const MIGRATIONS: readonly ((db: Db) => Promise<void>)[] = [
       ADJUSTMENT_CATEGORY.id, ADJUSTMENT_CATEGORY.name, ADJUSTMENT_CATEGORY.icon,
     );
   },
+
+  // 3 — buckets can be removed (hidden) even after money was spent from them.
+  async (db) => {
+    await db.execAsync('ALTER TABLE buckets ADD COLUMN removed INTEGER NOT NULL DEFAULT 0;');
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS.length;

@@ -16,6 +16,7 @@ export function HomeScreen() {
   const rollover = useLedgerStore((s) => s.rollover);
   const hasEntries = useLedgerStore((s) => s.transactions.length > 0);
   const hasBuckets = picture.buckets.length > 0;
+  const bucketsOff = useLedgerStore((s) => s.bucketsOff);
 
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content}>
@@ -67,7 +68,7 @@ export function HomeScreen() {
         </Card>
       )}
 
-      {!hasBuckets && !rollover && hasEntries && picture.unallocated_paise > 0 && (
+      {!hasBuckets && !rollover && !bucketsOff && hasEntries && picture.unallocated_paise > 0 && (
         <Card>
           <Text style={[styles.cardTitle, { color: p.text }]}>
             You have {formatINR(picture.unallocated_paise, { paise: 'never' })} unallocated

@@ -36,4 +36,5 @@ Add new entries at the bottom: date, decision, reason.
 | 29 | Bucket allocations are editable plan numbers (not ledger entries); moves/covers/plan saves are undoable by restoring previous allocations | Buckets are plans, not money movements |
 | 30 | Rollover copies last month's buckets at ₹0 and routes positive leftovers (Keep/Savings/Flexible); overspent buckets start fresh; remembered choices auto-apply only when every leftover has one | User decides; nothing silent unless they opted in |
 | 31 | "Update balance" writes the difference as a normal income/expense under a hidden category | Needed for real starting balances; keeps ledger immutable |
+| 32 | Any bucket (incl. Savings/Flexible, even with spending) can be removed; removal hides it (`buckets.removed`, migration 3) so history keeps pointing at it, and its leftover returns to unallocated. "Turn off buckets" removes all of the month's and stops suggesting them; a month whose buckets were all removed doesn't roll over. Undo restores exactly | Owner asked to remove/deselect buckets freely; immutable history must stay intact |
 

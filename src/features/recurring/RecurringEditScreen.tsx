@@ -1,4 +1,4 @@
-import { router, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -11,6 +11,7 @@ import { inputToPaise, paiseToInput } from '../../engine/money';
 import type { RecurringRule } from '../../engine/recurring';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { WEEKDAYS } from './schedule';
+import { goBack } from '../../utils/nav';
 
 export function RecurringEditScreen({ id }: { id: number | null }) {
   const db = useSQLiteContext();
@@ -55,7 +56,7 @@ export function RecurringEditScreen({ id }: { id: number | null }) {
       };
       if (existing) await update(db, existing.id, input);
       else await add(db, input);
-      router.back();
+      goBack('/recurring');
     } finally {
       setBusy(false);
     }

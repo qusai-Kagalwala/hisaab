@@ -7,6 +7,7 @@ import { Button, Card, ProgressBar, SectionTitle } from '../../components/ui';
 import { BUCKET_TEMPLATES, type TemplateId } from '../../engine/buckets';
 import { formatINR } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
+import { useUndoStore } from '../../store/undoStore';
 
 export function BucketsScreen() {
   const p = usePalette();
@@ -42,7 +43,7 @@ function TemplatePicker() {
     setBusy(true);
     try {
       await setupBuckets(db, id);
-      router.replace('/buckets/plan');
+      router.push('/buckets/plan');
     } finally {
       setBusy(false);
     }
@@ -94,6 +95,9 @@ function BucketsOverview() {
   const picture = useLedgerStore((s) => s.picture);
   const categories = useLedgerStore((s) => s.categories);
   const addBucket = useLedgerStore((s) => s.addBucket);
+  const removeBuckets = useLedgerStore((s) => s.removeBuckets);
+  const restoreBuckets = useLedgerStore((s) => s.restoreBuckets);
+  const showUndo = useUndoStore((s) => s.show);
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +111,20 @@ function BucketsOverview() {
     } catch {
       setError('You already have a bucket with that name.');
     }
+  };
+
+  const onRemove = async (id: number, name: string) => {
+    const ids = await removeBuckets(db, [id]);
+    showUndo(`Removed ${name}`, async () => {
+      await restoreBuckets(db, ids);
+    });
+  };
+
+  const onTurnOff = async () => {
+    const ids = await removeBuckets(db);
+    showUndo('Buckets turned off', async () => {
+      await restoreBuckets(db, ids);
+    });
   };
 
   return (
@@ -134,35 +152,44 @@ function BucketsOverview() {
       </Card>
 
       {picture.buckets.map((b) => (
-        <Pressable
-          key={b.id}
-          onPress={() => router.push({ pathname: '/buckets/[id]', params: { id: String(b.id) } })}
-          accessibilityRole="button"
-          accessibilityHint="Edit name and categories"
-        >
-          {({ pressed }) => (
-            <Card style={pressed && { backgroundColor: p.surfacePressed }}>
-              <View style={styles.between}>
-                <Text style={[styles.title, { color: p.text }]}>
-                  {b.name}
-                  {b.role && b.name.toLowerCase() !== b.role ? `  · ${b.role}` : ''}
-                </Text>
-                <Text style={[styles.amount, { color: p.text }]}>
-                  {b.remaining_paise >= 0 ? formatINR(b.remaining_paise, { paise: 'never' }) : `${formatINR(-b.remaining_paise, { paise: 'never' })} over`}
-                </Text>
-              </View>
-              <ProgressBar
-                fraction={b.allocated_paise > 0 ? b.remaining_paise / b.allocated_paise : 0}
-                muted={b.remaining_paise <= 0}
-              />
-              <Text style={{ color: p.textMuted, fontSize: 13 }}>
-                Planned {formatINR(b.allocated_paise, { paise: 'never' })} · spent {formatINR(b.spent_paise, { paise: 'never' })}
-                {'   '}
-                {b.category_ids.map((id) => categories.find((c) => c.id === id)?.icon ?? '').join(' ')}
+        <Card key={b.id}>
+          <Pressable
+            onPress={() => router.push({ pathname: '/buckets/[id]', params: { id: String(b.id) } })}
+            accessibilityRole="button"
+            accessibilityHint="Edit name and categories"
+            style={({ pressed }) => [styles.cardMain, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.between}>
+              <Text style={[styles.title, { color: p.text }]}>
+                {b.name}
+                {b.role && b.name.toLowerCase() !== b.role ? `  · ${b.role}` : ''}
               </Text>
-            </Card>
-          )}
-        </Pressable>
+              <Text style={[styles.amount, { color: p.text }]}>
+                {b.remaining_paise >= 0 ? formatINR(b.remaining_paise, { paise: 'never' }) : `${formatINR(-b.remaining_paise, { paise: 'never' })} over`}
+              </Text>
+            </View>
+            <ProgressBar
+              fraction={b.allocated_paise > 0 ? b.remaining_paise / b.allocated_paise : 0}
+              muted={b.remaining_paise <= 0}
+            />
+          </Pressable>
+          <View style={styles.between}>
+            <Text style={{ color: p.textMuted, fontSize: 13, flex: 1 }}>
+              Planned {formatINR(b.allocated_paise, { paise: 'never' })} · spent {formatINR(b.spent_paise, { paise: 'never' })}
+              {'   '}
+              {b.category_ids.map((id) => categories.find((c) => c.id === id)?.icon ?? '').join(' ')}
+            </Text>
+            <Pressable
+              onPress={() => onRemove(b.id, b.name)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${b.name}`}
+              style={styles.remove}
+            >
+              <Text style={{ color: p.textMuted, fontSize: 13, fontWeight: '600' }}>Remove</Text>
+            </Pressable>
+          </View>
+        </Card>
       ))}
 
       <SectionTitle>Add a bucket</SectionTitle>
@@ -182,6 +209,11 @@ function BucketsOverview() {
       <Text style={[styles.note, { color: p.textMuted }]}>
         Expenses go to the bucket their category belongs to; anything else draws from Flexible.
       </Text>
+      <Button label="Turn off buckets" variant="plain" onPress={onTurnOff} />
+      <Text style={[styles.note, { color: p.textMuted }]}>
+        Turning them off keeps your history. Money in them goes back to unallocated, and you can set them up again
+        any time.
+      </Text>
     </ScrollView>
   );
 }
@@ -196,5 +228,7 @@ const styles = StyleSheet.create({
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   actions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   flex: { flex: 1 },
+  remove: { paddingVertical: 6, paddingLeft: 12 },
+  cardMain: { gap: 8 },
   input: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, minHeight: MIN_TAP, fontSize: 15 },
 });

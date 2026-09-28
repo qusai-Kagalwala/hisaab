@@ -9,13 +9,13 @@ import {
   addRecurring,
   confirmPending,
   createBuckets,
-  deleteBucketIfUnused,
   generatePending,
   listAllBuckets,
   listPending,
   listRecurring,
   reopenPending,
   setAllocations,
+  setBucketsRemoved,
   setRecurringActive,
   skipPending,
   updateBucket,
@@ -34,6 +34,7 @@ import {
   listTransactionRows,
   renameAccount,
   setSetting,
+  SETTING_BUCKETS_OFF,
   SETTING_LAST_ACCOUNT,
   SETTING_ROLLOVER_PREFIX,
   undoNewTransaction,
@@ -41,6 +42,7 @@ import {
 } from '../db/queries';
 import type { Db } from '../db/types';
 import {
+  activeBuckets,
   BUCKET_TEMPLATES,
   bucketForCategory,
   computeMoneyPicture,
@@ -59,7 +61,7 @@ import { monthKey, type MonthKey } from '../engine/calendar';
 import { ADJUSTMENT_CATEGORY } from '../engine/defaults';
 import { balanceAdjustment, computeBalances, resolveTransactions, type CorrectionInput } from '../engine/ledger';
 import type { Paise } from '../engine/money';
-import { leftoverBuckets, planRollover, type RolloverChoice } from '../engine/rollover';
+import { leftoverBuckets, planRollover, rolloverSource, type RolloverChoice } from '../engine/rollover';
 import { reservedThisMonth, type Recurring } from '../engine/recurring';
 import type { Account, AccountType, Category, EffectiveTransaction } from '../engine/types';
 
@@ -103,8 +105,11 @@ interface LedgerState {
   dismissOverspend: () => void;
   addBucket: (db: Db, name: string) => Promise<void>;
   editBucket: (db: Db, id: number, name: string, categoryIds: number[]) => Promise<void>;
-  deleteBucket: (db: Db, id: number) => Promise<boolean>;
-  restoreBucket: (db: Db, bucket: Bucket) => Promise<void>;
+  /** Remove buckets (all of this month's when `ids` is omitted = buckets off). Returns what was removed. */
+  removeBuckets: (db: Db, ids?: number[]) => Promise<number[]>;
+  restoreBuckets: (db: Db, ids: number[]) => Promise<void>;
+  /** The user turned buckets off: stop suggesting them. */
+  bucketsOff: boolean;
   applyRollover: (db: Db, choices: Map<number, RolloverChoice>, remember: boolean) => Promise<void>;
 
   addRecurring: (db: Db, input: RecurringInput) => Promise<void>;
@@ -139,11 +144,12 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   safe: { per_day_paise: 0, pool_paise: 0, days_left: 1, over_paise: 0 },
   rollover: null,
   overspentBucketId: null,
+  bucketsOff: false,
 
   load: async (db) => {
     const now = Date.now();
     await generatePending(db, now);
-    const [accounts, categories, rows, lastRaw, allBuckets, recurring, pending, remembered] = await Promise.all([
+    const [accounts, categories, rows, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
       listAccounts(db),
       listCategories(db),
       listTransactionRows(db),
@@ -152,6 +158,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
       listRecurring(db),
       listPending(db),
       getSettingsWithPrefix(db, SETTING_ROLLOVER_PREFIX),
+      getSetting(db, SETTING_BUCKETS_OFF),
     ]);
     const transactions = resolveTransactions(rows);
     const balances = computeBalances(accounts.map((a) => a.id), transactions);
@@ -162,15 +169,14 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     const reserved = reservedThisMonth(recurring, pending, now);
     const pictureFor = (buckets: Bucket[]) =>
       computeMoneyPicture({ balances, buckets, transactions, reserved_paise: reserved });
-    const current = allBuckets.filter((b) => b.period_month === month);
-    const picture = pictureFor(current);
+    const picture = pictureFor(activeBuckets(allBuckets, month));
 
     // New month with no buckets yet, but an earlier month had some → rollover.
     let rollover: RolloverState | null = null;
-    if (current.length === 0) {
-      const fromMonth = allBuckets.map((b) => b.period_month).filter((m) => m < month).sort().pop();
+    {
+      const fromMonth = rolloverSource(allBuckets, month);
       if (fromMonth) {
-        const previous = pictureFor(allBuckets.filter((b) => b.period_month === fromMonth)).buckets;
+        const previous = pictureFor(activeBuckets(allBuckets, fromMonth)).buckets;
         const rememberedChoices = new Map(
           [...remembered].filter(([, v]) => v === 'keep' || v === 'savings' || v === 'flexible') as [string, RolloverChoice][],
         );
@@ -199,6 +205,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
       picture,
       safe: safeToSpend(picture, now),
       rollover,
+      bucketsOff: offRaw === '1',
     });
   },
 
@@ -261,6 +268,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   },
 
   setupBuckets: async (db, templateId) => {
+    await setSetting(db, SETTING_BUCKETS_OFF, '0');
     const template = BUCKET_TEMPLATES.find((t) => t.id === templateId);
     if (!template) throw new Error(`Unknown template ${templateId}`);
     const pool = Math.max(get().picture.unallocated_paise, 0);
@@ -307,14 +315,19 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     await get().load(db);
   },
 
-  deleteBucket: async (db, id) => {
-    const ok = await deleteBucketIfUnused(db, id);
+  removeBuckets: async (db, ids) => {
+    const all = ids == null;
+    const target = ids ?? get().picture.buckets.map((b) => b.id);
+    await setBucketsRemoved(db, target, true);
+    if (all) await setSetting(db, SETTING_BUCKETS_OFF, '1');
+    set({ overspentBucketId: null });
     await get().load(db);
-    return ok;
+    return target;
   },
 
-  restoreBucket: async (db, bucket) => {
-    await createBuckets(db, bucket.period_month, [bucket]);
+  restoreBuckets: async (db, ids) => {
+    await setBucketsRemoved(db, ids, false);
+    await setSetting(db, SETTING_BUCKETS_OFF, '0');
     await get().load(db);
   },
 

@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -8,6 +7,7 @@ import { percentOf, splitByPercent } from '../../engine/buckets';
 import { addPaise, formatINR, inputToPaise, paiseToInput, subtractPaise, type Paise } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
+import { goBack } from '../../utils/nav';
 
 type Mode = 'percent' | 'rupees';
 
@@ -59,7 +59,7 @@ export function PlanScreen() {
     showUndo('Plan saved', async () => {
       await saveAllocations(db, previous);
     });
-    router.back();
+    goBack('/buckets');
   };
 
   return (

@@ -23,6 +23,13 @@ export interface Bucket {
   role: BucketRole;
   sort_order: number;
   category_ids: number[];
+  /** Removed by the user. Kept (hidden) because past expenses point at it. */
+  removed?: boolean;
+}
+
+/** The buckets in use for a month (removed ones excluded). */
+export function activeBuckets(buckets: readonly Bucket[], month: MonthKey): Bucket[] {
+  return buckets.filter((b) => b.period_month === month && !b.removed);
 }
 
 export interface BucketStatus extends Bucket {

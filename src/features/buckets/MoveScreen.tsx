@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +6,7 @@ import { Button, Chip, MoneyField, SectionTitle } from '../../components/ui';
 import { formatINR, inputToPaise, paiseToInput } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
+import { goBack } from '../../utils/nav';
 
 export function MoveScreen() {
   const db = useSQLiteContext();
@@ -33,7 +33,7 @@ export function MoveScreen() {
     showUndo(`Moved ${formatINR(amount)} to ${to.name}`, async () => {
       await saveAllocations(db, previous);
     });
-    router.back();
+    goBack('/buckets');
   };
 
   if (sources.length === 0) {
