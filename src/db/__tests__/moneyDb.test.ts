@@ -1,4 +1,4 @@
-import { BUCKET_TEMPLATES, computeMoneyPicture, splitByPercent } from '../../engine/buckets';
+import { activeBuckets, BUCKET_TEMPLATES, computeMoneyPicture, splitByPercent } from '../../engine/buckets';
 import { CATEGORY_ID } from '../../engine/defaults';
 import { computeBalances, resolveTransactions } from '../../engine/ledger';
 import { reservedThisMonth } from '../../engine/recurring';
@@ -7,13 +7,13 @@ import {
   addRecurring,
   confirmPending,
   createBuckets,
-  deleteBucketIfUnused,
   generatePending,
   listAllBuckets,
   listPending,
   listRecurring,
   reopenPending,
   setAllocations,
+  setBucketsRemoved,
   setRecurringActive,
   skipPending,
   updateBucket,
@@ -105,6 +105,51 @@ describe('recurring → pending → confirm', () => {
   });
 });
 
+describe('removing buckets', () => {
+  it('hides a bucket that was spent from, returns its leftover to unallocated, and can come back', async () => {
+    const db = await freshDb();
+    const now = day(2026, 9, 10);
+    await addTransaction(db, { type: 'income', account_id: 1, category_id: CATEGORY_ID.salary, amount_paise: 100_000, created_at: now });
+    await createBuckets(db, '2026-09', [
+      { name: 'Fun', role: null, sort_order: 0, category_ids: [CATEGORY_ID.entertainment], allocated_paise: 60_000 },
+      { name: 'Flexible', role: 'flexible', sort_order: 1, category_ids: [], allocated_paise: 40_000 },
+    ]);
+    const [fun] = await listAllBuckets(db);
+    await addTransaction(db, { type: 'expense', account_id: 1, category_id: CATEGORY_ID.entertainment, amount_paise: 10_000, bucket_id: fun.id, created_at: now });
+
+    const picture = async () => {
+      const txs = resolveTransactions(await listTransactionRows(db));
+      return computeMoneyPicture({
+        balances: computeBalances([1, 2], txs),
+        buckets: activeBuckets(await listAllBuckets(db), '2026-09'),
+        transactions: txs,
+        reserved_paise: 0,
+      });
+    };
+    expect((await picture()).unallocated_paise).toBe(0);
+
+    await setBucketsRemoved(db, [fun.id], true);
+    const after = await picture();
+    expect(after.buckets.map((b) => b.name)).toEqual(['Flexible']);
+    expect(after.unallocated_paise).toBe(50_000); // Fun's ₹500 left is free again
+    expect(after.in_buckets_paise + after.unallocated_paise).toBe(after.total_paise);
+    expect(await listTransactionRows(db)).toHaveLength(2); // history untouched
+
+    await setBucketsRemoved(db, [fun.id], false);
+    expect((await picture()).unallocated_paise).toBe(0);
+  });
+
+  it('re-adding a removed name brings the bucket back with the new plan', async () => {
+    const db = await freshDb();
+    await createBuckets(db, '2026-09', [{ name: 'Trip', role: null, sort_order: 0, category_ids: [], allocated_paise: 5_000 }]);
+    const [trip] = await listAllBuckets(db);
+    await setBucketsRemoved(db, [trip.id], true);
+    await createBuckets(db, '2026-09', [{ name: 'Trip', role: null, sort_order: 3, category_ids: [], allocated_paise: 0 }]);
+    const [back] = await listAllBuckets(db);
+    expect(back).toMatchObject({ id: trip.id, removed: false, allocated_paise: 0, sort_order: 3 });
+  });
+});
+
 describe('buckets in the database', () => {
   it('sets up from a template and keeps the invariant through spending and confirms', async () => {
     const db = await freshDb();
@@ -145,7 +190,7 @@ describe('buckets in the database', () => {
     await expect(setAllocations(db, [{ id: ent.id, allocated_paise: -1 }])).rejects.toThrow();
   });
 
-  it('keeps each category in one bucket per month and protects used buckets', async () => {
+  it('keeps each category in one bucket per month and rejects duplicate names', async () => {
     const db = await freshDb();
     await createBuckets(db, '2026-09', [
       { name: 'Fun', role: null, sort_order: 0, category_ids: [CATEGORY_ID.entertainment], allocated_paise: 0 },
@@ -158,12 +203,9 @@ describe('buckets in the database', () => {
     expect(after.find((b) => b.id === fun.id)?.category_ids).toEqual([]);
     expect(after.find((b) => b.id === treats.id)?.category_ids).toEqual([CATEGORY_ID.entertainment, CATEGORY_ID.chai]);
 
-    await addTransaction(db, { type: 'expense', account_id: 1, category_id: CATEGORY_ID.chai, amount_paise: 2_000, bucket_id: treats.id });
-    expect(await deleteBucketIfUnused(db, treats.id)).toBe(false);
-    expect(await deleteBucketIfUnused(db, flexible.id)).toBe(false); // Flexible always stays
-    expect(await deleteBucketIfUnused(db, fun.id)).toBe(true);
     await expect(createBuckets(db, '2026-09', [
       { name: 'Treats', role: null, sort_order: 5, category_ids: [], allocated_paise: 0 },
-    ])).rejects.toThrow();
+    ])).rejects.toThrow(/already exists/);
+    expect(flexible.role).toBe('flexible');
   });
 });

@@ -36,4 +36,11 @@ Add new entries at the bottom: date, decision, reason.
 | 29 | Bucket allocations are editable plan numbers (not ledger entries); moves/covers/plan saves are undoable by restoring previous allocations | Buckets are plans, not money movements |
 | 30 | Rollover copies last month's buckets at ₹0 and routes positive leftovers (Keep/Savings/Flexible); overspent buckets start fresh; remembered choices auto-apply only when every leftover has one | User decides; nothing silent unless they opted in |
 | 31 | "Update balance" writes the difference as a normal income/expense under a hidden category | Needed for real starting balances; keeps ledger immutable |
+| 32 | Any bucket (incl. Savings/Flexible, even with spending) can be removed; removal hides it (`buckets.removed`, migration 3) so history keeps pointing at it, and its leftover returns to unallocated. "Turn off buckets" removes all of the month's and stops suggesting them; a month whose buckets were all removed doesn't roll over. Undo restores exactly | Owner asked to remove/deselect buckets freely; immutable history must stay intact |
+| 33 | Text entry uses the phone's own keyboard (incl. its mic for voice) behind an "Aa Type" toggle; the keypad stays default; the last mode is remembered | Owner: no custom keyboard; works in Expo Go; voice without a native module |
+| 34 | Goals are set-aside money: `buckets + bills + goals + unallocated == totals`; contributions come from the Savings bucket first, then free money; "Done"/"Remove" releases it back | Keeps the invariant and never double-counts |
+| 35 | Goal ETA uses net contributions over the last 90 days (window ≥30 days) scaled to a month, rounded down; ETA months rounded up | Conservative, never over-promises |
+| 36 | Insights compare this month so far with the same days last month (≥₹500 base, ≥25% change), plus bucket ≥80% and pace projections from day 5; balance updates and confirmed bills excluded | Fair comparisons, no noise, no shame |
+| 37 | Merchant memory learns only when the user picks/changes a category for a noted entry; a correction replaces the old mapping | Learns from real choices, not from guesses |
+| 38 | Offline chat answers only from engine numbers via templates; products (stocks/funds/loans/insurance) are always declined; tips carry "not financial advice" | Guardrails from SPEC §7.8 before any AI exists |
 

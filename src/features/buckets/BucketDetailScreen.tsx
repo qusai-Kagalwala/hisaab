@@ -1,13 +1,15 @@
-import { router, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CategoryGrid } from '../../components/CategoryGrid';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { Button, SectionTitle } from '../../components/ui';
 import type { BucketStatus } from '../../engine/buckets';
+import { formatINR } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
+import { goBack } from '../../utils/nav';
 
 export function BucketDetailScreen({ id }: { id: number }) {
   const p = usePalette();
@@ -26,10 +28,13 @@ function BucketForm({ bucket }: { bucket: BucketStatus }) {
   const db = useSQLiteContext();
   const p = usePalette();
   const categories = useLedgerStore((s) => s.categories);
-  const others = useLedgerStore((s) => s.picture.buckets.filter((b) => b.id !== bucket.id));
+  // Select the stable array, filter outside: a selector returning a new array
+  // every time makes zustand re-render forever.
+  const allBuckets = useLedgerStore((s) => s.picture.buckets);
+  const others = useMemo(() => allBuckets.filter((b) => b.id !== bucket.id), [allBuckets, bucket.id]);
   const editBucket = useLedgerStore((s) => s.editBucket);
-  const deleteBucket = useLedgerStore((s) => s.deleteBucket);
-  const restoreBucket = useLedgerStore((s) => s.restoreBucket);
+  const removeBuckets = useLedgerStore((s) => s.removeBuckets);
+  const restoreBuckets = useLedgerStore((s) => s.restoreBuckets);
   const showUndo = useUndoStore((s) => s.show);
 
   const [name, setName] = useState(bucket.name);
@@ -44,26 +49,18 @@ function BucketForm({ bucket }: { bucket: BucketStatus }) {
   const onSave = async () => {
     try {
       await editBucket(db, bucket.id, name, selected);
-      router.back();
+      goBack('/buckets');
     } catch {
       setMessage('That name is already used by another bucket.');
     }
   };
 
-  const onDelete = async () => {
-    const ok = await deleteBucket(db, bucket.id);
-    if (!ok) {
-      setMessage(
-        bucket.role
-          ? `${bucket.name} is a built-in bucket, so it stays. You can set it to ₹0.`
-          : 'This bucket already has spending this month, so it stays. You can set it to ₹0.',
-      );
-      return;
-    }
+  const onRemove = async () => {
+    const ids = await removeBuckets(db, [bucket.id]);
     showUndo(`Removed ${bucket.name}`, async () => {
-      await restoreBucket(db, bucket);
+      await restoreBuckets(db, ids);
     });
-    router.back();
+    goBack('/buckets');
   };
 
   return (
@@ -99,7 +96,14 @@ function BucketForm({ bucket }: { bucket: BucketStatus }) {
       )}
       {message && <Text style={{ color: p.text }}>{message}</Text>}
       <Button label="Save" onPress={onSave} disabled={!name.trim()} />
-      {bucket.role == null && <Button label="Remove bucket" variant="plain" onPress={onDelete} />}
+      <Button label="Remove bucket" variant="secondary" onPress={onRemove} />
+      <Text style={{ color: p.textMuted, fontSize: 13, textAlign: 'center' }}>
+        {bucket.remaining_paise > 0
+          ? `The ${formatINR(bucket.remaining_paise)} left in it goes back to unallocated. `
+          : ''}
+        Past expenses stay in your history.
+        {bucket.role === 'flexible' ? ' Without Flexible, other spending just isn\'t tracked in a bucket.' : ''}
+      </Text>
     </ScrollView>
   );
 }

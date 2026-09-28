@@ -1,4 +1,4 @@
-import { router, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -13,6 +13,7 @@ import type { EffectiveTransaction } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { dayLabel, timeLabel } from '../../utils/dates';
+import { goBack } from '../../utils/nav';
 
 interface Props {
   id: number;
@@ -50,8 +51,10 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
   const kind = tx.type === 'income' ? 'income' : 'expense';
   // Buckets of the month the entry happened in; only expenses draw from buckets.
   const monthBuckets = useMemo(
-    () => (kind === 'expense' ? allBuckets.filter((b) => b.period_month === monthKey(tx.occurred_at)) : []),
-    [allBuckets, kind, tx.occurred_at],
+    () => (kind === 'expense' ? allBuckets.filter(
+            (b) => b.period_month === monthKey(tx.occurred_at) && (!b.removed || b.id === tx.bucket_id),
+          ) : []),
+    [allBuckets, kind, tx.occurred_at, tx.bucket_id],
   );
   const [bucketId, setBucketId] = useState<number | null>(tx.bucket_id);
   const [input, setInput] = useState(paiseToInput(tx.amount_paise));
@@ -91,7 +94,7 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
         bucket_id: bucketId,
       });
       if (correctionId != null) showUndo(`Updated to ${formatINR(amountPaise)}`, restore);
-      router.back();
+      goBack('/history');
     } finally {
       setBusy(false);
     }
@@ -103,7 +106,7 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
     try {
       await correct(db, tx, { ...previous, amount_paise: 0 });
       showUndo(`Deleted ${formatINR(tx.amount_paise)}`, restore);
-      router.back();
+      goBack('/history');
     } finally {
       setBusy(false);
     }

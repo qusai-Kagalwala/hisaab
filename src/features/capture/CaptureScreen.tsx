@@ -1,22 +1,44 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountChips } from '../../components/AccountChips';
 import { CategoryGrid } from '../../components/CategoryGrid';
 import { Keypad } from '../../components/Keypad';
 import { OverspendCard } from '../../components/OverspendCard';
-import { usePalette } from '../../components/theme';
+import { MIN_TAP, usePalette } from '../../components/theme';
 import { guessCategory } from '../../engine/categoryGuess';
-import { applyKeypadKey, formatINR, formatKeypadInput, inputToPaise } from '../../engine/money';
+import { applyKeypadKey, formatINR, formatKeypadInput, inputToPaise, type Paise } from '../../engine/money';
+import { parseEntry } from '../../engine/parser';
 import type { Category, CategoryKind } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 
+interface SaveInput {
+  type: CategoryKind;
+  category: Category;
+  amount: Paise;
+  accountId: number;
+  note?: string | null;
+  learn?: boolean;
+  verb?: string;
+}
+
 /**
- * The app opens here. Flow: type amount → tap category → saved.
- * Account defaults to the last one used; date is now.
+ * The app opens here. Two ways to log, both ≤3 taps:
+ *  - keypad: type amount → tap category → saved
+ *  - text: type "chai 20" with the phone's own keyboard (or its mic) → Enter
+ * Quick chips save in one tap; long-press the amount to repeat the last entry.
  */
 export function CaptureScreen() {
   const db = useSQLiteContext();
@@ -24,53 +46,62 @@ export function CaptureScreen() {
   const accounts = useLedgerStore((s) => s.accounts);
   const categories = useLedgerStore((s) => s.categories);
   const lastAccountId = useLedgerStore((s) => s.lastAccountId);
+  const memory = useLedgerStore((s) => s.merchantMemory);
+  const picks = useLedgerStore((s) => s.quickPicks);
+  const last = useLedgerStore((s) => s.lastEntry);
+  const mode = useLedgerStore((s) => s.captureMode);
+  const setMode = useLedgerStore((s) => s.setCaptureMode);
   const saveTransaction = useLedgerStore((s) => s.saveTransaction);
   const setLastAccount = useLedgerStore((s) => s.setLastAccount);
   const undoNew = useLedgerStore((s) => s.undoNew);
+  const safe = useLedgerStore((s) => s.safe);
+  const attention = useLedgerStore((s) => s.pending.length + (s.rollover ? 1 : 0));
   const showUndo = useUndoStore((s) => s.show);
 
   const [input, setInput] = useState('');
+  const [text, setText] = useState('');
   const [kind, setKind] = useState<CategoryKind>('expense');
   const [hint, setHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const safe = useLedgerStore((s) => s.safe);
-  const attention = useLedgerStore((s) => s.pending.length + (s.rollover ? 1 : 0));
-  const visibleCategories = useMemo(
-    () => categories.filter((c) => c.kind === kind && !c.hidden),
-    [categories, kind],
-  );
-  // Refreshed after each save and whenever the screen regains focus, so the
-  // guess follows the time of day.
+  // Refreshed after each save and on focus, so the guess follows the time of day.
   const [guessTime, setGuessTime] = useState(() => Date.now());
   useFocusEffect(useCallback(() => setGuessTime(Date.now()), []));
-  const guessedId = useMemo(
-    () => guessCategory(new Date(guessTime), categories, kind),
-    [guessTime, categories, kind],
+
+  const parsed = useMemo(() => parseEntry(text, categories, memory), [text, categories, memory]);
+  const parsedCategory = categories.find((c) => c.id === parsed.category_id) ?? null;
+  // In text mode a recognised income category ("salary 30000") switches to Money in.
+  const effectiveKind: CategoryKind = mode === 'text' && parsedCategory ? parsedCategory.kind : kind;
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.kind === effectiveKind && !c.hidden),
+    [categories, effectiveKind],
   );
+  const guessedId = useMemo(
+    () => guessCategory(new Date(guessTime), categories, effectiveKind),
+    [guessTime, categories, effectiveKind],
+  );
+  const textAccountId =
+    (parsed.account_type && accounts.find((a) => a.type === parsed.account_type)?.id) || lastAccountId;
 
-  const amountPaise = inputToPaise(input);
+  const amountPaise = mode === 'keypad' ? inputToPaise(input) : parsed.amount_paise ?? 0;
+  const highlightedId = mode === 'text' ? parsed.category_id ?? guessedId : guessedId;
+  const highlighted = categories.find((c) => c.id === highlightedId) ?? null;
 
-  const onCategory = async (category: Category) => {
+  const save = async ({ type, category, amount, accountId, note, learn, verb }: SaveInput) => {
     if (saving) return;
-    if (amountPaise <= 0) {
-      setHint('Type an amount first');
-      return;
-    }
-    if (lastAccountId == null) return;
     setSaving(true);
     try {
-      const id = await saveTransaction(db, {
-        type: kind,
-        account_id: lastAccountId,
-        category_id: category.id,
-        amount_paise: amountPaise,
-      });
-      const amountText = formatINR(amountPaise, { signed: kind === 'income' });
-      showUndo(`${kind === 'income' ? 'Added' : 'Saved'} ${amountText} · ${category.name}`, async () => {
+      const id = await saveTransaction(
+        db,
+        { type, account_id: accountId, category_id: category.id, amount_paise: amount, note: note || null },
+        { learn },
+      );
+      const amountText = formatINR(amount, { signed: type === 'income' });
+      showUndo(`${verb ?? (type === 'income' ? 'Added' : 'Saved')} ${amountText} · ${category.name}`, async () => {
         await undoNew(db, id);
       });
       setInput('');
+      setText('');
       setHint(null);
       setGuessTime(Date.now());
     } finally {
@@ -78,26 +109,78 @@ export function CaptureScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => router.push('/home')}
-          hitSlop={8}
-          style={[styles.pill, { backgroundColor: p.accentSoft }]}
-          accessibilityRole="button"
-          accessibilityLabel={`Safe to spend today ${formatINR(safe.per_day_paise, { paise: 'never' })}. Open home`}
-        >
-          <Text style={[styles.pillLabel, { color: p.accent }]}>Today</Text>
-          <Text style={[styles.pillAmount, { color: p.accent }]}>
-            {formatINR(safe.per_day_paise, { paise: 'never' })}
-          </Text>
-          {attention > 0 && (
-            <View style={[styles.badge, { backgroundColor: p.accent }]}>
-              <Text style={[styles.badgeText, { color: p.accentText }]}>{attention}</Text>
-            </View>
-          )}
-        </Pressable>
+  const onCategory = (category: Category) => {
+    if (amountPaise <= 0) {
+      setHint(mode === 'text' ? 'Add an amount, like "chai 20"' : 'Type an amount first');
+      return;
+    }
+    if (mode === 'text') {
+      if (textAccountId == null) return;
+      // Tapping a category for a noted entry teaches Hisaab for next time.
+      void save({
+        type: category.kind, category, amount: amountPaise, accountId: textAccountId,
+        note: parsed.note, learn: !!parsed.note && category.id !== parsed.category_id,
+      });
+    } else if (lastAccountId != null) {
+      void save({ type: kind, category, amount: amountPaise, accountId: lastAccountId });
+    }
+  };
+
+  const onSubmitText = () => {
+    if (amountPaise <= 0) return setHint('Add an amount, like "chai 20"');
+    if (!highlighted) return setHint('Tap a category below');
+    onCategory(highlighted);
+  };
+
+  const onRepeat = () => {
+    if (!last || last.category_id == null) return setHint('Nothing to repeat yet');
+    const category = categories.find((c) => c.id === last.category_id);
+    if (!category) return;
+    void save({
+      type: last.type === 'income' ? 'income' : 'expense', category, amount: last.amount_paise,
+      accountId: last.account_id, note: last.note, verb: 'Repeated',
+    });
+  };
+
+  const chips = picks.length > 0 && (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+      {picks.map((pick) => {
+        const category = categories.find((c) => c.id === pick.category_id);
+        if (!category || lastAccountId == null) return null;
+        const label = `${category.icon} ${formatINR(pick.amount_paise, { paise: 'auto' })}`;
+        return (
+          <Pressable
+            key={`${pick.category_id}:${pick.amount_paise}`}
+            onPress={() => save({ type: 'expense', category, amount: pick.amount_paise, accountId: lastAccountId, note: pick.note })}
+            accessibilityRole="button"
+            accessibilityLabel={`Quick add ${formatINR(pick.amount_paise)} ${category.name}`}
+            style={({ pressed }) => [styles.chip, { backgroundColor: pressed ? p.surfacePressed : p.surface, borderColor: p.border }]}
+          >
+            <Text style={[styles.chipText, { color: p.text }]}>{label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+
+  const topBar = (
+    <View style={styles.topBar}>
+      <Pressable
+        onPress={() => router.push('/home')}
+        hitSlop={8}
+        style={[styles.pill, { backgroundColor: p.accentSoft }]}
+        accessibilityRole="button"
+        accessibilityLabel={`Safe to spend today ${formatINR(safe.per_day_paise, { paise: 'never' })}. Open home`}
+      >
+        <Text style={[styles.pillLabel, { color: p.accent }]}>Today</Text>
+        <Text style={[styles.pillAmount, { color: p.accent }]}>{formatINR(safe.per_day_paise, { paise: 'never' })}</Text>
+        {attention > 0 && (
+          <View style={[styles.badge, { backgroundColor: p.accent }]}>
+            <Text style={[styles.badgeText, { color: p.accentText }]}>{attention}</Text>
+          </View>
+        )}
+      </Pressable>
+      {mode === 'keypad' ? (
         <View style={[styles.segment, { borderColor: p.border }]}>
           {(['expense', 'income'] as const).map((k) => (
             <Pressable
@@ -113,17 +196,83 @@ export function CaptureScreen() {
             </Pressable>
           ))}
         </View>
-        <Pressable
-          onPress={() => router.push('/history')}
-          hitSlop={8}
-          style={styles.navButton}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.navText, { color: p.textMuted }]}>History</Text>
-        </Pressable>
-      </View>
+      ) : (
+        <View />
+      )}
+      <Pressable onPress={() => router.push('/history')} hitSlop={8} style={styles.navButton} accessibilityRole="button">
+        <Text style={[styles.navText, { color: p.textMuted }]}>History</Text>
+      </Pressable>
+    </View>
+  );
 
-      <View style={styles.amountArea}>
+  const modeToggle = (
+    <Pressable
+      onPress={() => {
+        setHint(null);
+        void setMode(db, mode === 'keypad' ? 'text' : 'keypad');
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={mode === 'keypad' ? 'Type with keyboard instead' : 'Use number keypad instead'}
+      hitSlop={8}
+      style={[styles.toggle, { borderColor: p.border }]}
+    >
+      <Text style={{ color: p.textMuted, fontWeight: '600' }}>{mode === 'keypad' ? 'Aa  Type' : '123  Keypad'}</Text>
+    </Pressable>
+  );
+
+  if (mode === 'text') {
+    const preview = [
+      parsed.amount_paise ? formatINR(parsed.amount_paise, { signed: effectiveKind === 'income' }) : null,
+      highlighted ? `${highlighted.icon} ${highlighted.name}` : null,
+      accounts.find((a) => a.id === textAccountId)?.name,
+    ].filter(Boolean).join(' · ');
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          {topBar}
+          <TextInput
+            value={text}
+            onChangeText={(t) => {
+              setText(t);
+              setHint(null);
+            }}
+            onSubmitEditing={onSubmitText}
+            placeholder="chai 20 · auto 50 cash · 2k rent"
+            placeholderTextColor={p.textMuted}
+            autoFocus
+            returnKeyType="done"
+            submitBehavior="submit"
+            autoCorrect={false}
+            autoCapitalize="none"
+            accessibilityLabel="Type an entry"
+            style={[styles.textInput, { color: p.text, borderColor: p.accent, backgroundColor: p.surface }]}
+          />
+          <View style={styles.previewRow}>
+            <Text style={[styles.preview, { color: text ? p.text : p.textMuted }]} numberOfLines={2}>
+              {hint ?? (text ? preview || 'Add an amount…' : 'Tip: tap the 🎤 on your keyboard to speak it')}
+            </Text>
+            {modeToggle}
+          </View>
+          <ScrollView contentContainerStyle={styles.textBottom} keyboardShouldPersistTaps="handled">
+            <OverspendCard />
+            {chips}
+            <AccountChips accounts={accounts} selectedId={textAccountId} onSelect={(id) => void setLastAccount(db, id)} />
+            <CategoryGrid categories={visibleCategories} highlightedId={highlightedId} onPress={onCategory} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
+      {topBar}
+      <Pressable
+        style={styles.amountArea}
+        onLongPress={onRepeat}
+        delayLongPress={450}
+        accessibilityHint="Long press to repeat your last entry"
+      >
         <Text
           style={[styles.amount, { color: input ? p.text : p.textMuted }]}
           numberOfLines={1}
@@ -135,15 +284,13 @@ export function CaptureScreen() {
         <Text style={[styles.hint, { color: p.textMuted }]}>
           {hint ?? (kind === 'expense' ? 'Type amount, then tap a category' : 'Type amount, then tap where it came from')}
         </Text>
-      </View>
+        <View style={styles.toggleRow}>{modeToggle}</View>
+      </Pressable>
 
       <View style={styles.bottom}>
         <OverspendCard />
-        <AccountChips
-          accounts={accounts}
-          selectedId={lastAccountId}
-          onSelect={(id) => void setLastAccount(db, id)}
-        />
+        {chips}
+        <AccountChips accounts={accounts} selectedId={lastAccountId} onSelect={(id) => void setLastAccount(db, id)} />
         <CategoryGrid categories={visibleCategories} highlightedId={guessedId} onPress={onCategory} />
         <Keypad
           onKey={(key) => {
@@ -169,8 +316,17 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '800' },
   segment: { flexDirection: 'row', borderWidth: 1, borderRadius: 999, overflow: 'hidden' },
   segmentItem: { paddingHorizontal: 14, paddingVertical: 8 },
-  amountArea: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 90 },
+  amountArea: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 110 },
   amount: { fontSize: 56, fontWeight: '700', fontVariant: ['tabular-nums'] },
   hint: { fontSize: 14, marginTop: 4 },
+  toggleRow: { marginTop: 8 },
+  toggle: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   bottom: { gap: 10, paddingBottom: 8 },
+  chips: { gap: 8, paddingVertical: 2 },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' },
+  chipText: { fontSize: 15, fontWeight: '600' },
+  textInput: { borderWidth: 2, borderRadius: 14, paddingHorizontal: 14, minHeight: MIN_TAP + 12, fontSize: 22, marginTop: 8 },
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  preview: { flex: 1, fontSize: 16, fontWeight: '600' },
+  textBottom: { gap: 10, paddingBottom: 16 },
 });

@@ -33,7 +33,7 @@ function tx(partial: Partial<TransactionRow>): TransactionRow {
 
 function checkInvariant(p: MoneyPicture) {
   const inBuckets = addPaise(...p.buckets.map((b) => b.remaining_paise));
-  expect(inBuckets + p.reserved_paise + p.unallocated_paise).toBe(p.total_paise);
+  expect(inBuckets + p.reserved_paise + p.goals_paise + p.unallocated_paise).toBe(p.total_paise);
 }
 
 describe('computeMoneyPicture', () => {
@@ -88,7 +88,8 @@ describe('computeMoneyPicture', () => {
       const balances = new Map<number, number>([[1, 0], [2, 0]]);
       for (const t of txs) balances.set(t.account_id, balances.get(t.account_id)! + (t.type === 'income' ? t.amount_paise : -t.amount_paise));
       const reserved = rand(200_000);
-      const picture = () => computeMoneyPicture({ balances, buckets, transactions: txs, reserved_paise: reserved });
+      const goals = rand(300_000);
+      const picture = () => computeMoneyPicture({ balances, buckets, transactions: txs, reserved_paise: reserved, goals_paise: goals });
 
       const before = picture();
       checkInvariant(before);
@@ -119,7 +120,7 @@ describe('computeMoneyPicture', () => {
 });
 
 describe('safeToSpend', () => {
-  const base = { total_paise: 0, reserved_paise: 0, in_buckets_paise: 0, plan_pool_paise: 0 };
+  const base = { total_paise: 0, reserved_paise: 0, goals_paise: 0, in_buckets_paise: 0, plan_pool_paise: 0 };
   const flexible = { ...bucket({ id: 1, role: 'flexible' }), spent_paise: 0, remaining_paise: 100_000 };
   const lastWeek = new Date(2026, 8, 24).getTime(); // 7 days left in September
 

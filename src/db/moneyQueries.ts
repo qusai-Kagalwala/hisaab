@@ -29,6 +29,7 @@ interface BucketRow {
   role: BucketRole;
   sort_order: number;
   categories_json: string;
+  removed: number;
 }
 
 function toBucket(r: BucketRow): Bucket {
@@ -40,12 +41,13 @@ function toBucket(r: BucketRow): Bucket {
     role: r.role ?? null,
     sort_order: r.sort_order,
     category_ids: JSON.parse(r.categories_json) as number[],
+    removed: r.removed === 1,
   };
 }
 
 export async function listAllBuckets(db: Db): Promise<Bucket[]> {
   const rows = await db.getAllAsync<BucketRow>(
-    `SELECT id, name, period_month, allocated_paise, role, sort_order, categories_json
+    `SELECT id, name, period_month, allocated_paise, role, sort_order, categories_json, removed
      FROM buckets ORDER BY period_month, sort_order, id`,
   );
   return rows.map(toBucket);
@@ -59,17 +61,26 @@ export interface NewBucket {
   allocated_paise: Paise;
 }
 
-/** Create a month's buckets in one go (setup from a template, or rollover). */
+/**
+ * Create a month's buckets in one go (setup from a template, rollover, or
+ * "add bucket"). A removed bucket with the same name comes back with the new
+ * values; a name already in use throws.
+ */
 export async function createBuckets(db: Db, month: MonthKey, buckets: readonly (NewBucket | NewMonthBucket)[]): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const b of buckets) {
       assertPaise(b.allocated_paise);
       if (b.allocated_paise < 0) throw new Error('Allocation cannot be negative');
-      await db.runAsync(
-        `INSERT INTO buckets (name, period_month, allocated_paise, role, sort_order, categories_json)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+      const result = await db.runAsync(
+        `INSERT INTO buckets (name, period_month, allocated_paise, role, sort_order, categories_json, removed)
+         VALUES (?, ?, ?, ?, ?, ?, 0)
+         ON CONFLICT(period_month, name) DO UPDATE SET
+           allocated_paise = excluded.allocated_paise, role = excluded.role, sort_order = excluded.sort_order,
+           categories_json = excluded.categories_json, removed = 0
+         WHERE buckets.removed = 1`,
         b.name.trim(), month, b.allocated_paise, b.role, b.sort_order, JSON.stringify(b.category_ids),
       );
+      if (result.changes === 0) throw new Error(`A bucket called "${b.name.trim()}" already exists`);
     }
   });
 }
@@ -96,7 +107,7 @@ export async function updateBucket(
     if (!bucket) throw new Error('Bucket not found');
     // A category draws from one bucket per month: take it off the others.
     const siblings = await db.getAllAsync<{ id: number; categories_json: string }>(
-      'SELECT id, categories_json FROM buckets WHERE period_month = ? AND id != ?',
+      'SELECT id, categories_json FROM buckets WHERE period_month = ? AND id != ? AND removed = 0',
       bucket.period_month, id,
     );
     for (const s of siblings) {
@@ -110,12 +121,16 @@ export async function updateBucket(
   });
 }
 
-/** Delete a bucket that nothing was ever spent from. Returns false otherwise. */
-export async function deleteBucketIfUnused(db: Db, id: number): Promise<boolean> {
-  const used = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM transactions WHERE bucket_id = ?', id);
-  if ((used?.n ?? 0) > 0) return false;
-  const r = await db.runAsync("DELETE FROM buckets WHERE id = ? AND role IS NULL", id);
-  return r.changes === 1;
+/**
+ * Remove buckets. They are hidden, not deleted: past expenses still point at
+ * them. What was left in them goes back to unallocated money.
+ */
+export async function setBucketsRemoved(db: Db, ids: readonly number[], removed: boolean): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    for (const id of ids) {
+      await db.runAsync('UPDATE buckets SET removed = ? WHERE id = ?', removed ? 1 : 0, id);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

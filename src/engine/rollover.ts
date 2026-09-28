@@ -3,7 +3,8 @@
  * nothing allocated, then each bucket's leftover goes where the user chose.
  * Leftovers nobody decides on simply show up as unallocated money.
  */
-import type { BucketRole, BucketStatus } from './buckets';
+import { activeBuckets, type Bucket, type BucketRole, type BucketStatus } from './buckets';
+import type { MonthKey } from './calendar';
 import { addPaise, type Paise } from './money';
 
 export type RolloverChoice = 'keep' | 'savings' | 'flexible';
@@ -14,6 +15,18 @@ export interface NewMonthBucket {
   sort_order: number;
   category_ids: number[];
   allocated_paise: Paise;
+}
+
+/**
+ * The month to roll over from, or null. Only when this month has no bucket
+ * rows at all (not even removed ones — removing them all means "buckets
+ * off"), and the latest earlier month still had buckets in use.
+ */
+export function rolloverSource(all: readonly Bucket[], month: MonthKey): MonthKey | null {
+  if (all.some((b) => b.period_month === month)) return null;
+  const from = all.map((b) => b.period_month).filter((m) => m < month).sort().pop();
+  if (!from) return null;
+  return activeBuckets(all, from).length > 0 ? from : null;
 }
 
 /** Buckets whose leftover needs a decision. */

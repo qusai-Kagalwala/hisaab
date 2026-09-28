@@ -1,5 +1,5 @@
 import type { BucketStatus } from '../buckets';
-import { choicesFor, leftoverBuckets, planRollover, type RolloverChoice } from '../rollover';
+import { choicesFor, leftoverBuckets, planRollover, rolloverSource, type RolloverChoice } from '../rollover';
 
 function status(id: number, name: string, remaining: number, role: BucketStatus['role'] = null): BucketStatus {
   return {
@@ -46,5 +46,22 @@ describe('rollover', () => {
     expect(choicesFor(previous[0], previous)).toEqual(['keep', 'flexible']);
     expect(choicesFor(previous[1], previous)).toEqual(['keep', 'savings', 'flexible']);
     expect(choicesFor(previous[1], [previous[1]])).toEqual(['keep']);
+  });
+});
+
+describe('rolloverSource', () => {
+  const b = (month: string, removed = false) => ({ ...status(1, 'X', 0), period_month: month, removed });
+
+  it('rolls over from the latest earlier month that had buckets in use', () => {
+    expect(rolloverSource([b('2026-08'), b('2026-09')], '2026-10')).toBe('2026-09');
+    expect(rolloverSource([], '2026-10')).toBeNull();
+  });
+
+  it('does nothing once this month has any buckets, even removed ones', () => {
+    expect(rolloverSource([b('2026-09'), b('2026-10', true)], '2026-10')).toBeNull();
+  });
+
+  it('treats a month whose buckets were all removed as "buckets off"', () => {
+    expect(rolloverSource([b('2026-08'), b('2026-09', true)], '2026-10')).toBeNull();
   });
 });
