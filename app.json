@@ -29,6 +29,12 @@
       "expo-secure-store",
       "expo-sharing"
     ],
-    "scheme": "hisaab"
+    "scheme": "hisaab",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b5708f5e-0d8c-49ab-bbae-98a69c980de3"
+      }
+    }
   }
 }
