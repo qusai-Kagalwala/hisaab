@@ -44,7 +44,7 @@ docs/          SPEC, PROGRESS, DECISIONS
 ## Commands
 - Start dev: `npx expo start`
 - Tests: `npm test`
-- Type check: `npx tsc --noEmit`
+- Type check: `npx tsc --noEmit` (or `npm run typecheck`)
 - Lint: `npm run lint`
 
 ## Working style

@@ -4,18 +4,28 @@ Claude updates this file at the end of every phase.
 Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Current phase
-Phase 1 — Foundation ⬜
+Phase 1 — Foundation ✅ (awaiting owner review) · next: Phase 2 — Money model
 
-## Phase 1 — Foundation ⬜
-- [ ] Expo + TypeScript project setup, lint, Jest
-- [ ] SQLite schema + migrations
-- [ ] Money utils (paise, ₹ Indian formatting) + tests
-- [ ] Accounts (Cash, UPI/Bank, custom)
-- [ ] Capture screen: keypad → category → save
-- [ ] Category guess (time of day)
-- [ ] Undo toast
-- [ ] Transaction history list
-- [ ] Correction entries for edits
+## Phase 1 — Foundation ✅
+- [x] Expo + TypeScript project setup, lint, Jest
+- [x] SQLite schema + migrations
+- [x] Money utils (paise, ₹ Indian formatting) + tests
+- [x] Accounts (Cash, UPI/Bank, custom)
+- [x] Capture screen: keypad → category → save
+- [x] Category guess (time of day)
+- [x] Undo toast
+- [x] Transaction history list
+- [x] Correction entries for edits
+
+Notes:
+- Where things live: routes `src/app/` (thin) → screens `src/features/`;
+  ledger/money/guess logic `src/engine/`; SQL `src/db/`; state `src/store/`.
+- The full SPEC §5 schema is created in migration 1, so later phases mostly add queries.
+- DB tests run the real migrations/queries against Node's built-in SQLite
+  (`src/db/__tests__/nodeSqliteDb.ts`).
+- Known gaps (by design, later phases): no transfers between accounts
+  (engine throws if one appears), no opening balance (log "Money in" instead),
+  entry date can't be edited yet, history loads everything (fine for now; page it later).
 
 ## Phase 2 — Money model ⬜
 - [ ] Recurring income/expenses
@@ -58,3 +68,4 @@ Phase 1 — Foundation ⬜
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-28 — Phase 1 Foundation built: schema+migrations, money utils, capture, undo, history, edit via corrections, accounts; 53 tests, tsc, lint green; web smoke test passed — next: owner review, then Phase 2 plan.
