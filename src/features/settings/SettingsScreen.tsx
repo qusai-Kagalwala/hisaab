@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -21,6 +22,7 @@ export function SettingsScreen() {
       <AiSection />
       <BackupSection />
       <SectionTitle>About</SectionTitle>
+      <Button label="How Hisaab works" variant="secondary" compact onPress={() => router.push('/about')} />
       <Text style={{ color: p.textMuted, lineHeight: 20 }}>
         Hisaab keeps everything on this phone. No login, no server, no bank or SMS access. The app works fully with AI
         switched off.
@@ -114,7 +116,13 @@ function AiSection() {
       ) : (
         <Card>
           <Text style={{ color: p.text }}>
-            Get a free key at aistudio.google.com → “Get API key”, then paste it here.
+            Get a free key at aistudio.google.com → “Get API key” → “Create API key”, copy it and paste it here.
+          </Text>
+          <Text
+            style={{ color: p.accent, fontSize: 13 }}
+            onPress={() => router.push({ pathname: '/about', params: { section: 'ai' } })}
+          >
+            Step-by-step help ›
           </Text>
           <TextInput
             value={key}

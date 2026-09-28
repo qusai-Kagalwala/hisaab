@@ -89,6 +89,7 @@ function AppStack() {
         <Stack.Screen name="insights" options={{ title: 'Insights' }} />
         <Stack.Screen name="ideas" options={{ title: 'Ideas' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings & backup' }} />
+        <Stack.Screen name="about" options={{ title: 'How Hisaab works' }} />
       </Stack>
       <UndoToast />
     </View>

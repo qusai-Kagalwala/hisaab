@@ -2,6 +2,7 @@ import { Link, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { OverspendCard } from '../../components/OverspendCard';
 import { PendingCard } from '../../components/PendingCard';
+import { SafeToSpendHero } from '../../components/SafeToSpendHero';
 import { WeeklyCard } from '../../components/WeeklyCard';
 import { usePalette } from '../../components/theme';
 import { Button, Card, ProgressBar, SectionTitle } from '../../components/ui';
@@ -12,7 +13,6 @@ import { monthLabel } from '../goals/goalText';
 
 export function HomeScreen() {
   const p = usePalette();
-  const safe = useLedgerStore((s) => s.safe);
   const picture = useLedgerStore((s) => s.picture);
   const pending = useLedgerStore((s) => s.pending);
   const rollover = useLedgerStore((s) => s.rollover);
@@ -25,17 +25,12 @@ export function HomeScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content}>
-      <View style={styles.hero}>
-        <Text style={[styles.heroLabel, { color: p.textMuted }]}>Safe to spend today</Text>
-        <Text style={[styles.heroAmount, { color: p.text }]} numberOfLines={1} adjustsFontSizeToFit>
-          {formatINR(safe.per_day_paise, { paise: 'never' })}
-        </Text>
-        <Text style={[styles.heroSub, { color: p.textMuted }]}>
-          {safe.over_paise > 0
-            ? `You're ${formatINR(safe.over_paise, { paise: 'never' })} over plan this month. A small rebalance fixes it.`
-            : `${formatINR(safe.pool_paise, { paise: 'never' })} free for the next ${safe.days_left} ${safe.days_left === 1 ? 'day' : 'days'}`}
-        </Text>
-      </View>
+      <SafeToSpendHero />
+      {!hasEntries && (
+        <Pressable onPress={() => router.push('/about')} accessibilityRole="link" style={{ alignSelf: 'center' }}>
+          <Text style={{ color: p.accent, fontWeight: '600' }}>New here? See how Hisaab works ›</Text>
+        </Pressable>
+      )}
 
       <View style={styles.quickRow}>
         <Button label="Can I afford…?" variant="secondary" compact onPress={() => router.push('/afford')} style={styles.flex} />
@@ -174,6 +169,7 @@ export function HomeScreen() {
         <Link href="/recurring" style={[styles.link, { color: p.accent }]}>Bills & income</Link>
         <Link href="/accounts" style={[styles.link, { color: p.accent }]}>Accounts</Link>
         <Link href="/settings" style={[styles.link, { color: p.accent }]}>Settings & backup</Link>
+        <Link href="/about" style={[styles.link, { color: p.accent }]}>How it works</Link>
         <Link href="/history" style={[styles.link, { color: p.accent }]}>History</Link>
       </View>
 
@@ -194,10 +190,6 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
-  hero: { alignItems: 'center', paddingVertical: 16 },
-  heroLabel: { fontSize: 15, fontWeight: '500' },
-  heroAmount: { fontSize: 52, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  heroSub: { fontSize: 14, textAlign: 'center', marginTop: 4 },
   cardTitle: { fontSize: 16, fontWeight: '700' },
   bucketRow: { gap: 6, paddingVertical: 6 },
   bucketText: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },

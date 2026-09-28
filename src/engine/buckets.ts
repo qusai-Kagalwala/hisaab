@@ -273,3 +273,40 @@ export const BUCKET_TEMPLATES: readonly BucketTemplate[] = [
     ],
   },
 ];
+
+export interface SafeToSpendStep {
+  label: string;
+  paise: Paise;
+  op: 'start' | 'minus' | 'equals';
+}
+
+/**
+ * The same number as safeToSpend(), explained step by step:
+ *   accounts − bills − goals − still planned in other buckets = free money
+ *   free money ÷ days left = safe to spend today
+ * (Flexible and unplanned money are both "free"; an overspend nobody
+ * covered is already inside the lower totals.)
+ */
+export function explainSafeToSpend(picture: MoneyPicture, nowMs: number): {
+  steps: SafeToSpendStep[];
+  pool_paise: Paise;
+  days_left: number;
+  per_day_paise: Paise;
+} {
+  const plannedElsewhere = addPaise(
+    ...picture.buckets.filter((b) => b.role !== 'flexible' && b.remaining_paise > 0).map((b) => b.remaining_paise),
+  );
+  const pool = subtractPaise(
+    subtractPaise(subtractPaise(picture.total_paise, picture.reserved_paise), picture.goals_paise),
+    plannedElsewhere,
+  );
+  const safe = safeToSpend(picture, nowMs);
+  if (pool !== safe.pool_paise) throw new Error('Safe-to-spend explanation does not add up');
+
+  const steps: SafeToSpendStep[] = [{ label: 'Money in all your accounts', paise: picture.total_paise, op: 'start' }];
+  if (picture.reserved_paise > 0) steps.push({ label: 'Kept aside for bills still due this month', paise: picture.reserved_paise, op: 'minus' });
+  if (picture.goals_paise > 0) steps.push({ label: 'Set aside in your goals', paise: picture.goals_paise, op: 'minus' });
+  if (plannedElsewhere > 0) steps.push({ label: 'Still planned in your buckets (except Flexible)', paise: plannedElsewhere, op: 'minus' });
+  steps.push({ label: 'Free to spend for the rest of this month', paise: pool, op: 'equals' });
+  return { steps, pool_paise: pool, days_left: safe.days_left, per_day_paise: safe.per_day_paise };
+}

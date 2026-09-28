@@ -143,7 +143,7 @@ export function CaptureScreen() {
   };
 
   const chips = picks.length > 0 && (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
       {picks.map((pick) => {
         const category = categories.find((c) => c.id === pick.category_id);
         if (!category || lastAccountId == null) return null;
@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
   toggleRow: { marginTop: 8 },
   toggle: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   bottom: { gap: 10, paddingBottom: 8 },
+  chipsScroll: { flexGrow: 0 },
   chips: { gap: 8, paddingVertical: 2 },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' },
   chipText: { fontSize: 15, fontWeight: '600' },

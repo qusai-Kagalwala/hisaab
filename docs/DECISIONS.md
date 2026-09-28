@@ -50,4 +50,6 @@ Add new entries at the bottom: date, decision, reason.
 | 43 | Charts: ranked horizontal bars for categories (not a donut), one-axis grouped bars for in/out, daily bars with a safe-to-spend reference line; blue/orange validated for CVD in both themes | Readability and accessibility |
 | 44 | Backup/restore moved into Phase 4; restore replaces everything in one DB transaction and keeps a safety copy for Undo | Needed to move data from Expo Go to the APK |
 | 45 | Distribution: EAS cloud build → APK (`preview` profile); no hosting needed. Optional static web export with COOP/COEP `_headers` | Offline-first app has no server |
+| 46 | Home shows "Safe to spend today" with an expandable breakdown: accounts − bills − goals − still planned in non-Flexible buckets = free money; ÷ days left (today included). The breakdown is computed by the engine and must equal the safe-to-spend pool (tested) | Owner found the single number hard to understand |
+| 47 | In-app "How Hisaab works" page (/about) with a step-by-step AI key guide; linked from Home, Settings and the chat empty state | Owner asked where to add the key and how to use the app |
 
