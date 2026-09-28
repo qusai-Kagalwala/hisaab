@@ -9,6 +9,7 @@ import Svg, { Line, Path } from 'react-native-svg';
 import type { CategorySlice, MonthFlow } from '../engine/charts';
 import { monthName } from '../engine/calendar';
 import { formatINR, type Paise } from '../engine/money';
+import { CategoryIcon } from './Icon';
 import { usePalette } from './theme';
 
 const fmt = (p: Paise) => formatINR(p, { paise: 'never' });
@@ -43,9 +44,12 @@ export function CategoryBars({
           style={({ pressed }) => [styles.hRow, pressed && { opacity: 0.6 }]}
         >
           <View style={styles.hHead}>
-            <Text style={{ color: p.text, fontSize: 14 }} numberOfLines={1}>
-              {s.icon} {s.name}
-            </Text>
+            <View style={styles.hLabel}>
+              <CategoryIcon icon={s.icon} size={18} color={p.textMuted} />
+              <Text style={{ color: p.text, fontSize: 14, flexShrink: 1 }} numberOfLines={1}>
+                {s.name}
+              </Text>
+            </View>
             <Text style={{ color: p.text, fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
               {fmt(s.paise)} <Text style={{ color: p.textMuted, fontWeight: '400' }}>{s.percent}%</Text>
             </Text>
@@ -186,6 +190,7 @@ const styles = StyleSheet.create({
   list: { gap: 10 },
   hRow: { gap: 4 },
   hHead: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  hLabel: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   hTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
   hFill: { height: 8, borderRadius: 4 },
   legend: { flexDirection: 'row', gap: 14, flexWrap: 'wrap', alignItems: 'center' },

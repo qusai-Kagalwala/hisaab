@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Icon } from '../../components/Icon';
 import { usePalette } from '../../components/theme';
 import { Button, Card, Chip } from '../../components/ui';
 import { monthName } from '../../engine/calendar';
@@ -79,7 +80,7 @@ export function RolloverScreen() {
           style={styles.remember}
         >
           <View style={[styles.box, { borderColor: p.accent, backgroundColor: remember ? p.accent : 'transparent' }]}>
-            {remember && <Text style={{ color: p.accentText, fontWeight: '800' }}>✓</Text>}
+            {remember && <Icon name="check" size={18} color={p.accentText} />}
           </View>
           <Text style={{ color: p.text, flex: 1 }}>Remember my choices and do this automatically next month</Text>
         </Pressable>

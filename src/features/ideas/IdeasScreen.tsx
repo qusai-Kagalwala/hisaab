@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BAND_LABEL, getIdeas, groupByBand, offlineIdeas, type Idea, type Mood } from '../../ai/ideas';
+import type { IconName } from '../../components/Icon';
 import { usePalette } from '../../components/theme';
 import { Button, Card, Chip, MoneyField, SectionTitle } from '../../components/ui';
 import { inputToPaise, paiseToInput } from '../../engine/money';
 import { useAiStore } from '../../store/aiStore';
 import { useLedgerStore } from '../../store/ledgerStore';
 
-const MOODS: { id: Mood; label: string }[] = [
-  { id: 'outdoor', label: '🌳 Outdoor' },
-  { id: 'food', label: '🍜 Food' },
-  { id: 'chill', label: '🛋️ Chill' },
-  { id: 'social', label: '🎉 Social' },
+const MOODS: { id: Mood; label: string; icon: IconName }[] = [
+  { id: 'outdoor', label: 'Outdoor', icon: 'pine-tree' },
+  { id: 'food', label: 'Food', icon: 'food-outline' },
+  { id: 'chill', label: 'Chill', icon: 'sofa-outline' },
+  { id: 'social', label: 'Social', icon: 'account-multiple-outline' },
 ];
 
 /** "What can I do under ₹X?" — ballpark ideas, never bookings. */
@@ -49,7 +50,7 @@ export function IdeasScreen() {
       {fun && <Text style={{ color: p.textMuted, fontSize: 13 }}>Started from what&apos;s left in {fun.name}.</Text>}
       <View style={styles.chips}>
         {MOODS.map((m) => (
-          <Chip key={m.id} label={m.label} selected={mood === m.id} onPress={() => { setMood(mood === m.id ? null : m.id); setResult(null); }} />
+          <Chip key={m.id} label={m.label} icon={m.icon} selected={mood === m.id} onPress={() => { setMood(mood === m.id ? null : m.id); setResult(null); }} />
         ))}
       </View>
       <Button

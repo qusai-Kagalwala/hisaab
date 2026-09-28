@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Icon, type IconName } from '../../components/Icon';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import type { ChatMessage } from '../../db/smartQueries';
 import { useAiStore } from '../../store/aiStore';
@@ -20,13 +21,13 @@ import { useChatStore } from '../../store/chatStore';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 
-const SUGGESTIONS: { emoji: string; text: string }[] = [
-  { emoji: '💰', text: 'How much do I have?' },
-  { emoji: '🧾', text: 'Where did my money go?' },
-  { emoji: '🛍️', text: 'Can I afford ₹2,000 shoes?' },
-  { emoji: '🎯', text: 'When will I reach my goal?' },
-  { emoji: '🌱', text: 'How do I save more?' },
-  { emoji: '🗣️', text: 'kitna paisa bacha hai?' },
+const SUGGESTIONS: { icon: IconName; text: string }[] = [
+  { icon: 'wallet-outline', text: 'How much do I have?' },
+  { icon: 'receipt-text-outline', text: 'Where did my money go?' },
+  { icon: 'shopping-outline', text: 'Can I afford ₹2,000 shoes?' },
+  { icon: 'bullseye-arrow', text: 'When will I reach my goal?' },
+  { icon: 'piggy-bank-outline', text: 'How do I save more?' },
+  { icon: 'translate', text: 'kitna paisa bacha hai?' },
 ];
 
 /** Hisaab Assistant — answers from your own numbers; AI (optional) only explains. */
@@ -84,14 +85,17 @@ export function ChatScreen() {
       <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
         {empty ? (
           <ScrollView contentContainerStyle={styles.welcome} keyboardShouldPersistTaps="handled">
-            <Text style={styles.bigEmoji}>💬</Text>
+            <View style={[styles.hero, { backgroundColor: p.accentSoft }]}>
+              <Icon name="message-text-outline" size={30} color={p.accent} />
+            </View>
             <Text style={[styles.title, { color: p.text }]}>Ask about your money</Text>
             <Text style={[styles.lead, { color: p.textMuted }]}>
               In English or Hinglish. Every number comes from your own entries, worked out on your phone.
             </Text>
             <View style={[styles.modePill, { backgroundColor: aiOn ? p.accentSoft : p.surface, borderColor: p.border }]}>
+              <Icon name={aiOn ? 'cloud-check-outline' : 'cloud-off-outline'} size={16} color={aiOn ? p.accent : p.textMuted} />
               <Text style={{ color: aiOn ? p.accent : p.textMuted, fontSize: 13, fontWeight: '600' }}>
-                {aiOn ? '✨ AI on — Gemini explains the answers' : '📴 Offline answers'}
+                {aiOn ? 'AI on — Gemini explains the answers' : 'Offline answers'}
               </Text>
             </View>
             {!aiOn && (
@@ -111,7 +115,7 @@ export function ChatScreen() {
                     { backgroundColor: pressed ? p.surfacePressed : p.surface, borderColor: p.border },
                   ]}
                 >
-                  <Text style={styles.suggestionEmoji}>{s.emoji}</Text>
+                  <Icon name={s.icon} size={22} color={p.accent} />
                   <Text style={{ color: p.text, fontSize: 14, lineHeight: 19 }}>{s.text}</Text>
                 </Pressable>
               ))}
@@ -166,9 +170,8 @@ export function ChatScreen() {
                   accessibilityRole="button"
                   style={[styles.chip, { borderColor: p.border, backgroundColor: p.surface }]}
                 >
-                  <Text style={{ color: p.text, fontSize: 13 }}>
-                    {s.emoji} {s.text}
-                  </Text>
+                  <Icon name={s.icon} size={15} color={p.textMuted} />
+                  <Text style={{ color: p.text, fontSize: 13 }}>{s.text}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -190,7 +193,7 @@ export function ChatScreen() {
               accessibilityLabel="Send"
               style={[styles.send, { backgroundColor: text.trim() ? p.accent : p.surfacePressed }]}
             >
-              <Text style={{ color: text.trim() ? p.accentText : p.textMuted, fontWeight: '800', fontSize: 18 }}>↑</Text>
+              <Icon name="arrow-up" size={22} color={text.trim() ? p.accentText : p.textMuted} />
             </Pressable>
           </View>
         </View>
@@ -212,7 +215,7 @@ function Bubble({ message }: { message: ChatMessage }) {
   return (
     <View style={[styles.bubble, styles.left, { backgroundColor: p.surface, borderColor: p.border }]}>
       <Text style={{ color: p.textMuted, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>
-        {message.role === 'ai' ? '✨ HISAAB · AI' : 'HISAAB'}
+        {message.role === 'ai' ? 'HISAAB · AI' : 'HISAAB'}
       </Text>
       <Text style={{ color: p.text, fontSize: 15, lineHeight: 22 }}>{body}</Text>
       {note && <Text style={{ color: p.textMuted, fontSize: 12, marginTop: 6 }}>({note}</Text>}
@@ -223,14 +226,13 @@ function Bubble({ message }: { message: ChatMessage }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   welcome: { padding: 20, alignItems: 'center', gap: 10 },
-  bigEmoji: { fontSize: 40, marginTop: 8 },
+  hero: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   title: { fontSize: 20, fontWeight: '800' },
   lead: { fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
-  modePill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginTop: 4 },
+  modePill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginTop: 4 },
   tryLabel: { alignSelf: 'flex-start', fontSize: 13, fontWeight: '600', marginTop: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, width: '100%' },
   suggestion: { width: '48.5%', borderWidth: 1, borderRadius: 14, padding: 12, gap: 4, minHeight: 84 },
-  suggestionEmoji: { fontSize: 20 },
   list: { padding: 12, gap: 10 },
   bubble: { maxWidth: '86%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   right: { alignSelf: 'flex-end', borderBottomRightRadius: 6 },
@@ -240,7 +242,7 @@ const styles = StyleSheet.create({
   composer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
   chipsScroll: { flexGrow: 0 },
   chips: { gap: 8, paddingHorizontal: 12, alignItems: 'center' },
-  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   inputRow: { flexDirection: 'row', gap: 8, padding: 12, paddingTop: 8, alignItems: 'center' },
   input: { flex: 1, borderWidth: 1, borderRadius: 999, paddingHorizontal: 16, minHeight: MIN_TAP, fontSize: 15 },
   send: { width: MIN_TAP, height: MIN_TAP, borderRadius: MIN_TAP / 2, alignItems: 'center', justifyContent: 'center' },

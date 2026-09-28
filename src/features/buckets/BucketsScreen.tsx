@@ -18,7 +18,7 @@ export function BucketsScreen() {
     return rollover ? (
       <View style={[styles.center, { backgroundColor: p.background }]}>
         <Card>
-          <Text style={[styles.title, { color: p.text }]}>New month 🎉</Text>
+          <Text style={[styles.title, { color: p.text }]}>New month</Text>
           <Text style={{ color: p.textMuted }}>First decide what happens to last month&apos;s leftovers.</Text>
           <Button label="Start the month" compact onPress={() => router.replace('/rollover')} />
         </Card>

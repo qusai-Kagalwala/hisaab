@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountChips } from '../../components/AccountChips';
 import { CategoryGrid } from '../../components/CategoryGrid';
+import { CategoryIcon, Icon } from '../../components/Icon';
 import { Keypad } from '../../components/Keypad';
 import { OverspendCard } from '../../components/OverspendCard';
 import { MIN_TAP, usePalette } from '../../components/theme';
@@ -147,7 +148,7 @@ export function CaptureScreen() {
       {picks.map((pick) => {
         const category = categories.find((c) => c.id === pick.category_id);
         if (!category || lastAccountId == null) return null;
-        const label = `${category.icon} ${formatINR(pick.amount_paise, { paise: 'auto' })}`;
+        const label = formatINR(pick.amount_paise, { paise: 'auto' });
         return (
           <Pressable
             key={`${pick.category_id}:${pick.amount_paise}`}
@@ -156,7 +157,10 @@ export function CaptureScreen() {
             accessibilityLabel={`Quick add ${formatINR(pick.amount_paise)} ${category.name}`}
             style={({ pressed }) => [styles.chip, { backgroundColor: pressed ? p.surfacePressed : p.surface, borderColor: p.border }]}
           >
-            <Text style={[styles.chipText, { color: p.text }]}>{label}</Text>
+            <View style={styles.chipInner}>
+              <CategoryIcon icon={category.icon} size={18} color={p.accent} />
+              <Text style={[styles.chipText, { color: p.text }]}>{label}</Text>
+            </View>
           </Pressable>
         );
       })}
@@ -216,14 +220,17 @@ export function CaptureScreen() {
       hitSlop={8}
       style={[styles.toggle, { borderColor: p.border }]}
     >
-      <Text style={{ color: p.textMuted, fontWeight: '600' }}>{mode === 'keypad' ? 'Aa  Type' : '123  Keypad'}</Text>
+      <View style={styles.chipInner}>
+        <Icon name={mode === 'keypad' ? 'keyboard-outline' : 'dialpad'} size={18} color={p.textMuted} />
+        <Text style={{ color: p.textMuted, fontWeight: '600' }}>{mode === 'keypad' ? 'Type' : 'Keypad'}</Text>
+      </View>
     </Pressable>
   );
 
   if (mode === 'text') {
     const preview = [
       parsed.amount_paise ? formatINR(parsed.amount_paise, { signed: effectiveKind === 'income' }) : null,
-      highlighted ? `${highlighted.icon} ${highlighted.name}` : null,
+      highlighted ? highlighted.name : null,
       accounts.find((a) => a.id === textAccountId)?.name,
     ].filter(Boolean).join(' · ');
     return (
@@ -249,7 +256,7 @@ export function CaptureScreen() {
           />
           <View style={styles.previewRow}>
             <Text style={[styles.preview, { color: text ? p.text : p.textMuted }]} numberOfLines={2}>
-              {hint ?? (text ? preview || 'Add an amount…' : 'Tip: tap the 🎤 on your keyboard to speak it')}
+              {hint ?? (text ? preview || 'Add an amount…' : 'Tip: tap the mic on your keyboard to speak it')}
             </Text>
             {modeToggle}
           </View>
@@ -326,6 +333,7 @@ const styles = StyleSheet.create({
   chips: { gap: 8, paddingVertical: 2 },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' },
   chipText: { fontSize: 15, fontWeight: '600' },
+  chipInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   textInput: { borderWidth: 2, borderRadius: 14, paddingHorizontal: 14, minHeight: MIN_TAP + 12, fontSize: 22, marginTop: 8 },
   previewRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
   preview: { flex: 1, fontSize: 16, fontWeight: '600' },

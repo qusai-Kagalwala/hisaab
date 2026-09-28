@@ -52,4 +52,6 @@ Add new entries at the bottom: date, decision, reason.
 | 45 | Distribution: EAS cloud build → APK (`preview` profile); no hosting needed. Optional static web export with COOP/COEP `_headers` | Offline-first app has no server |
 | 46 | Home shows "Safe to spend today" with an expandable breakdown: accounts − bills − goals − still planned in non-Flexible buckets = free money; ÷ days left (today included). The breakdown is computed by the engine and must equal the safe-to-spend pool (tested) | Owner found the single number hard to understand |
 | 47 | In-app "How Hisaab works" page (/about) with a step-by-step AI key guide; linked from Home, Settings and the chat empty state | Owner asked where to add the key and how to use the app |
+| 48 | No emojis in the UI: one icon family (Material Community Icons via @expo/vector-icons) everywhere; categories store icon names (migration 5), with text fallback for old emoji values | Owner: emojis look "AI-like" and unpolished |
+| 49 | App logo: white ₹ whose leg flows into a mint tick on brand green (#1F7A5C), used for launcher, adaptive and monochrome icons, favicon | A real identity for the APK instead of Expo placeholders |
 

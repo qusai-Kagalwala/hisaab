@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { normalizeAmountText } from '../engine/money';
+import { Icon, type IconName } from './Icon';
 import { MIN_TAP, usePalette } from './theme';
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -10,6 +11,7 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 
 interface ButtonProps {
   label: string;
+  icon?: IconName;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'plain';
   disabled?: boolean;
@@ -17,7 +19,7 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export function Button({ label, onPress, variant = 'primary', disabled, compact, style }: ButtonProps) {
+export function Button({ label, icon, onPress, variant = 'primary', disabled, compact, style }: ButtonProps) {
   const p = usePalette();
   const bg = variant === 'primary' ? p.accent : variant === 'secondary' ? p.accentSoft : 'transparent';
   const fg = variant === 'primary' ? p.accentText : variant === 'secondary' ? p.accent : p.textMuted;
@@ -34,7 +36,10 @@ export function Button({ label, onPress, variant = 'primary', disabled, compact,
         style,
       ]}
     >
-      <Text style={[styles.buttonText, compact && styles.buttonTextCompact, { color: fg }]}>{label}</Text>
+      <View style={styles.buttonInner}>
+        {icon && <Icon name={icon} size={compact ? 18 : 20} color={fg} />}
+        <Text style={[styles.buttonText, compact && styles.buttonTextCompact, { color: fg }]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -86,7 +91,17 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   return <Text style={[styles.section, { color: p.text }]}>{children}</Text>;
 }
 
-export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+export function Chip({
+  label,
+  selected,
+  onPress,
+  icon,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  icon?: IconName;
+}) {
   const p = usePalette();
   return (
     <Pressable
@@ -95,7 +110,10 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
       accessibilityState={{ selected }}
       style={[styles.chip, { borderColor: selected ? p.accent : p.border, backgroundColor: selected ? p.accentSoft : p.surface }]}
     >
-      <Text style={{ color: selected ? p.accent : p.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
+      <View style={styles.buttonInner}>
+        {icon && <Icon name={icon} size={16} color={selected ? p.accent : p.textMuted} />}
+        <Text style={{ color: selected ? p.accent : p.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -104,6 +122,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 8 },
   button: { minHeight: MIN_TAP, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   buttonCompact: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12 },
+  buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonText: { fontSize: 16, fontWeight: '700' },
   buttonTextCompact: { fontSize: 14 },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },

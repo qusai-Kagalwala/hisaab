@@ -45,7 +45,7 @@ export function WeeklyCard() {
   if (!enabled || !summary) return null;
   return (
     <Card>
-      <Text style={{ color: p.textMuted, fontSize: 12 }}>{summary.source === 'ai' ? '✨ Your week' : 'Your week'}</Text>
+      <Text style={{ color: p.textMuted, fontSize: 12 }}>{summary.source === 'ai' ? 'Your week · AI' : 'Your week'}</Text>
       <Text style={{ color: p.text, lineHeight: 21 }}>{summary.text}</Text>
     </Card>
   );

@@ -83,6 +83,7 @@ Notes:
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-28 — Replaced all UI emojis with Material Community Icons (migration 5 for categories), new ₹-tick app logo and adaptive icons, friendlier no-balance Home state — next: Phase 5.
 - 2026-09-28 — Owner feedback: redesigned Ask Hisaab (chip row stretched the screen), Home now explains safe-to-spend step by step (engine `explainSafeToSpend`, always equals the number), new How-it-works page incl. where to add the AI key; 222 tests — next: Phase 5 after APK.
 - 2026-09-28 — Phase 4 built: Gemini (own key, fallback chain, context builder, number guard), AI chat/weekly/Ideas with offline fallbacks, Insights charts, backup export/import, EAS APK config + INSTALL.md; 221 tests, tsc, lint green; Android+web bundles build; browser run-through passed — next: owner builds APK, then Phase 5 (widget).
 - 2026-09-28 — Phase 3 Smarts offline built: text/voice-via-keyboard entry with parser + merchant learning, quick chips, repeat last, goals + what-if, insights, can-I-afford, offline Hinglish chat; 191 tests, tsc, lint green; browser run-through passed — next: owner review, then Phase 4 plan.

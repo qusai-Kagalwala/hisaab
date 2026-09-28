@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { CategoryIcon } from '../../components/Icon';
 import { usePalette } from '../../components/theme';
 import { groupByDay } from '../../engine/ledger';
 import { formatINR } from '../../engine/money';
@@ -34,7 +35,7 @@ export function HistoryScreen() {
         <Stack.Screen options={{ title: filterTitle }} />
         <Text style={[styles.emptyTitle, { color: p.text }]}>Nothing logged yet</Text>
         <Text style={{ color: p.textMuted, textAlign: 'center' }}>
-          Your entries will show up here. Go back and log your first chai ☕
+          Your entries will show up here. Go back and log your first chai.
         </Text>
       </View>
     );
@@ -70,7 +71,9 @@ export function HistoryScreen() {
               { backgroundColor: pressed ? p.surfacePressed : p.surface, borderColor: p.border },
             ]}
           >
-            <Text style={styles.icon}>{category?.icon ?? '📦'}</Text>
+            <View style={[styles.iconBadge, { backgroundColor: p.accentSoft }]}>
+              <CategoryIcon icon={category?.icon ?? 'dots-horizontal-circle'} size={20} color={p.accent} />
+            </View>
             <View style={styles.rowMain}>
               <Text style={[styles.rowTitle, { color: p.text }]} numberOfLines={1}>
                 {item.note || category?.name || 'Uncategorised'}
@@ -107,7 +110,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: 6,
   },
-  icon: { fontSize: 22 },
+  iconBadge: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   rowMain: { flex: 1 },
   rowTitle: { fontSize: 15, fontWeight: '500' },
   rowSub: { fontSize: 12, marginTop: 2 },

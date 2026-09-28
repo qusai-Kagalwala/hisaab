@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Category } from '../engine/types';
+import { CategoryIcon } from './Icon';
 import { MIN_TAP, usePalette } from './theme';
 
 interface Props {
@@ -34,7 +35,7 @@ export function CategoryGrid({ categories, highlightedId, selectedIds, onPress, 
               },
             ]}
           >
-            <Text style={styles.icon}>{c.icon}</Text>
+            <CategoryIcon icon={c.icon} size={24} color={highlighted ? p.accent : p.text} />
             <Text numberOfLines={1} style={[styles.label, { color: p.text }]}>
               {c.name}
             </Text>
@@ -56,6 +57,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingVertical: 6,
   },
-  icon: { fontSize: 22 },
   label: { fontSize: 11, marginTop: 2 },
 });

@@ -173,7 +173,7 @@ function goalAnswer(text: string, ctx: ChatContext, lang: Lang): string {
     .slice(0, 3)
     .map((g) => {
       const progress = `${g.name}: ${fmt(g.saved_paise)} / ${fmt(g.target_paise)}`;
-      if (g.remaining_paise === 0) return lang === 'hi' ? `${progress} — pura ho gaya! 🎉` : `${progress} — reached! 🎉`;
+      if (g.remaining_paise === 0) return lang === 'hi' ? `${progress} — pura ho gaya!` : `${progress} — reached!`;
       if (!g.eta_month) {
         return lang === 'hi'
           ? `${progress}. ETA ke liye pehle kuch paisa daalo.`

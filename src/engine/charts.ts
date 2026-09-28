@@ -32,14 +32,14 @@ export function categoryBreakdown(
   const toSlice = (id: number | null, paise: Paise): CategorySlice => {
     const c = categories.find((x) => x.id === id);
     return {
-      category_id: id, name: c?.name ?? 'Other', icon: c?.icon ?? '📦', paise,
+      category_id: id, name: c?.name ?? 'Other', icon: c?.icon ?? 'dots-horizontal-circle', paise,
       percent: total > 0 ? Math.round((paise * 100) / total) : 0,
     };
   };
   const head = rows.slice(0, rows.length > maxRows ? maxRows - 1 : maxRows).map(([id, v]) => toSlice(id, v));
   if (rows.length > maxRows) {
     const rest = addPaise(...rows.slice(maxRows - 1).map(([, v]) => v));
-    head.push({ ...toSlice(null, rest), name: 'Everything else', icon: '···', category_id: -1 });
+    head.push({ ...toSlice(null, rest), name: 'Everything else', icon: 'dots-horizontal', category_id: -1 });
   }
   return { total_paise: total, slices: head };
 }

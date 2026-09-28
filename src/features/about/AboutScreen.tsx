@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Icon, type IconName } from '../../components/Icon';
 import { usePalette } from '../../components/theme';
 import { Button, Card } from '../../components/ui';
 
 interface Section {
   id: string;
-  emoji: string;
+  icon: IconName;
   title: string;
   body: ReactNode;
 }
@@ -51,7 +52,7 @@ function sections(): Section[] {
   return [
     {
       id: 'start',
-      emoji: '🚀',
+      icon: 'rocket-launch-outline',
       title: 'Start here (2 minutes)',
       body: (
         <Steps
@@ -67,21 +68,21 @@ function sections(): Section[] {
     },
     {
       id: 'log',
-      emoji: '⚡',
+      icon: 'lightning-bolt-outline',
       title: 'Logging a spend',
       body: (
         <>
-          <P>Keypad: type 40 → tap ☕ Chai. That’s it — 3 taps. The highlighted category is Hisaab’s guess for this time of day.</P>
+          <P>Keypad: type 40 → tap Chai & Snacks. That’s it — 3 taps. The highlighted category is Hisaab’s guess for this time of day.</P>
           <P>Typing: tap “Aa Type” and write like a message — “chai 20”, “auto 50 cash”, “2k rent”, “do sau sabzi”. Press Enter.</P>
-          <P>Voice: in typing mode, tap the 🎤 on your phone’s keyboard and just say it.</P>
-          <P>Quick chips like “☕ ₹20” appear for things you log often — one tap saves. Long-press the big ₹ amount to repeat your last entry.</P>
+          <P>Voice: in typing mode, tap the mic on your phone’s keyboard and just say it.</P>
+          <P>Quick chips like “Chai ₹20” appear for things you log often — one tap saves. Long-press the big ₹ amount to repeat your last entry.</P>
           <Tip>Made a mistake? Tap Undo on the black bar (5 seconds), or fix it later in History. Hisaab never deletes your history — edits are saved as corrections.</Tip>
         </>
       ),
     },
     {
       id: 'safe',
-      emoji: '🟢',
+      icon: 'calendar-today',
       title: '“Safe to spend today” explained',
       body: (
         <>
@@ -94,7 +95,7 @@ function sections(): Section[] {
     },
     {
       id: 'bills',
-      emoji: '🔁',
+      icon: 'calendar-sync',
       title: 'Salary and bills',
       body: (
         <>
@@ -106,7 +107,7 @@ function sections(): Section[] {
     },
     {
       id: 'buckets',
-      emoji: '🪣',
+      icon: 'bucket-outline',
       title: 'Buckets (optional)',
       body: (
         <>
@@ -119,7 +120,7 @@ function sections(): Section[] {
     },
     {
       id: 'goals',
-      emoji: '🎯',
+      icon: 'bullseye-arrow',
       title: 'Goals',
       body: (
         <>
@@ -131,7 +132,7 @@ function sections(): Section[] {
     },
     {
       id: 'insights',
-      emoji: '📊',
+      icon: 'chart-box-outline',
       title: 'Insights, Ideas and “Can I afford it?”',
       body: (
         <>
@@ -143,7 +144,7 @@ function sections(): Section[] {
     },
     {
       id: 'ai',
-      emoji: '✨',
+      icon: 'robot-outline',
       title: 'Using AI — where to add the key',
       body: (
         <>
@@ -163,7 +164,7 @@ function sections(): Section[] {
     },
     {
       id: 'backup',
-      emoji: '💾',
+      icon: 'database-arrow-down-outline',
       title: 'Backup and new phone',
       body: (
         <>
@@ -175,7 +176,7 @@ function sections(): Section[] {
     },
     {
       id: 'privacy',
-      emoji: '🔒',
+      icon: 'shield-lock-outline',
       title: 'Privacy',
       body: (
         <P>No login, no server, no bank or SMS access, no ads, no tracking. Hisaab only knows what you type. AI is off unless you add your own key.</P>
@@ -221,7 +222,9 @@ export function AboutScreen({ initial }: { initial?: string }) {
               accessibilityState={{ expanded: isOpen }}
               style={styles.sectionHead}
             >
-              <Text style={styles.emoji}>{s.emoji}</Text>
+              <View style={[styles.sectionIcon, { backgroundColor: p.accentSoft }]}>
+                <Icon name={s.icon} size={20} color={p.accent} />
+              </View>
               <Text style={[styles.sectionTitle, { color: p.text }]}>{s.title}</Text>
               <Text style={{ color: p.textMuted, fontSize: 18 }}>{isOpen ? '−' : '+'}</Text>
             </Pressable>
@@ -246,7 +249,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800' },
   card: { paddingVertical: 4 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48 },
-  emoji: { fontSize: 20 },
+  sectionIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { flex: 1, fontSize: 16, fontWeight: '700' },
   body: { gap: 10, paddingBottom: 10 },
   p: { fontSize: 14, lineHeight: 21 },

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { CategoryBars, DailyBars, FlowBars } from '../../components/charts';
+import { InsightCard } from '../../components/InsightCard';
 import { usePalette } from '../../components/theme';
 import { Card, SectionTitle } from '../../components/ui';
 import { monthName } from '../../engine/calendar';
@@ -28,12 +29,7 @@ export function InsightsScreen() {
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content}>
       {insights.map((i) => (
-        <Card key={i.id}>
-          <Text style={{ color: p.text, lineHeight: 20 }}>
-            {i.kind === 'trend_down' ? '🌱 ' : '💡 '}
-            {i.text}
-          </Text>
-        </Card>
+        <InsightCard key={i.id} insight={i} />
       ))}
 
       <SectionTitle>Where it went in {monthName(month)}</SectionTitle>

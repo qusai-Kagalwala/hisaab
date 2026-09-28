@@ -3,6 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { DATA_NEVER_SENT, DATA_SENT_EXPLAINER } from '../../ai/context';
+import { Icon } from '../../components/Icon';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { Button, Card, Chip, SectionTitle } from '../../components/ui';
 import { exportAll, importAll } from '../../db/backupQueries';
@@ -106,7 +107,10 @@ function AiSection() {
         <Text style={{ color: p.textMuted }}>This device can&apos;t store the key securely (e.g. web), so AI is unavailable here.</Text>
       ) : ai.hasKey ? (
         <Card>
-          <Text style={{ color: p.text, fontWeight: '600' }}>Gemini key saved 🔒</Text>
+          <View style={styles.between}>
+            <Icon name="lock-outline" size={18} color={p.accent} />
+            <Text style={{ color: p.text, fontWeight: '600', flex: 1 }}>Gemini key saved</Text>
+          </View>
           <Text style={{ color: p.textMuted, fontSize: 13 }}>Stored encrypted on this phone. Only sent to Google.</Text>
           <View style={styles.row}>
             <Button label="Check models" variant="secondary" compact onPress={onRefresh} disabled={busy} />

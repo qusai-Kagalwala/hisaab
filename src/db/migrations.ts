@@ -1,4 +1,4 @@
-import { ADJUSTMENT_CATEGORY, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../engine/defaults';
+import { ADJUSTMENT_CATEGORY, CATEGORY_ICONS, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../engine/defaults';
 import type { Db } from './types';
 
 /**
@@ -158,6 +158,13 @@ const MIGRATIONS: readonly ((db: Db) => Promise<void>)[] = [
       ALTER TABLE goals ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done', 'removed'));
       CREATE INDEX idx_goal_contributions_goal ON goal_contributions(goal_id);
     `);
+  },
+
+  // 5 — default categories use icon names instead of emoji.
+  async (db) => {
+    for (const [id, icon] of Object.entries(CATEGORY_ICONS)) {
+      await db.runAsync('UPDATE categories SET icon = ? WHERE id = ? AND is_default = 1', icon, Number(id));
+    }
   },
 ];
 

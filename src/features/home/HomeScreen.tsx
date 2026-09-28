@@ -1,6 +1,7 @@
 import { Link, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { OverspendCard } from '../../components/OverspendCard';
+import { InsightCard } from '../../components/InsightCard';
 import { PendingCard } from '../../components/PendingCard';
 import { SafeToSpendHero } from '../../components/SafeToSpendHero';
 import { WeeklyCard } from '../../components/WeeklyCard';
@@ -33,12 +34,12 @@ export function HomeScreen() {
       )}
 
       <View style={styles.quickRow}>
-        <Button label="Can I afford…?" variant="secondary" compact onPress={() => router.push('/afford')} style={styles.flex} />
-        <Button label="💬 Ask Hisaab" variant="secondary" compact onPress={() => router.push('/chat')} style={styles.flex} />
+        <Button label="Can I afford?" icon="scale" variant="secondary" compact onPress={() => router.push('/afford')} style={styles.flex} />
+        <Button label="Ask Hisaab" icon="message-text-outline" variant="secondary" compact onPress={() => router.push('/chat')} style={styles.flex} />
       </View>
       <View style={styles.quickRow}>
-        <Button label="📊 Insights" variant="secondary" compact onPress={() => router.push('/insights')} style={styles.flex} />
-        <Button label="💡 Ideas under ₹X" variant="secondary" compact onPress={() => router.push('/ideas')} style={styles.flex} />
+        <Button label="Insights" icon="chart-box-outline" variant="secondary" compact onPress={() => router.push('/insights')} style={styles.flex} />
+        <Button label="Ideas under ₹X" icon="lightbulb-on-outline" variant="secondary" compact onPress={() => router.push('/ideas')} style={styles.flex} />
       </View>
 
       <WeeklyCard />
@@ -55,7 +56,7 @@ export function HomeScreen() {
 
       {rollover && (
         <Card>
-          <Text style={[styles.cardTitle, { color: p.text }]}>New month, fresh start 🎉</Text>
+          <Text style={[styles.cardTitle, { color: p.text }]}>New month, fresh start</Text>
           <Text style={{ color: p.textMuted }}>
             Decide what happens to what&apos;s left from {monthName(rollover.fromMonth)}.
           </Text>
@@ -70,12 +71,7 @@ export function HomeScreen() {
       <OverspendCard />
 
       {insights.map((i) => (
-        <Card key={i.id}>
-          <Text style={{ color: p.text, lineHeight: 20 }}>
-            {i.kind === 'trend_down' ? '🌱 ' : '💡 '}
-            {i.text}
-          </Text>
-        </Card>
+        <InsightCard key={i.id} insight={i} />
       ))}
 
       {hasBuckets && picture.unallocated_paise > 0 && (
@@ -139,7 +135,7 @@ export function HomeScreen() {
                 <Text style={[styles.bucketName, { color: p.text }]}>{g.name}</Text>
                 <Text style={{ color: p.textMuted, fontSize: 13 }}>
                   {g.remaining_paise === 0
-                    ? 'Reached! 🎉'
+                    ? 'Reached!'
                     : g.eta_month
                       ? `by ${monthLabel(g.eta_month)}`
                       : `${formatINR(g.saved_paise, { paise: 'never' })} of ${formatINR(g.target_paise, { paise: 'never' })}`}

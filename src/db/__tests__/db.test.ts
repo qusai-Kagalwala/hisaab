@@ -155,3 +155,12 @@ describe('accounts and settings', () => {
     expect(await getSetting(db, 'last_account_id')).toBe(String(CASH));
   });
 });
+
+describe('icons', () => {
+  it('default categories use icon names after migration 5', async () => {
+    const db = await freshDb();
+    const cats = await listCategories(db);
+    expect(cats.find((c) => c.id === CATEGORY_ID.chai)?.icon).toBe('coffee');
+    expect(cats.find((c) => c.id === ADJUSTMENT_CATEGORY.id)?.icon).toBe('scale-balance');
+  });
+});

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { explainSafeToSpend } from '../engine/buckets';
@@ -20,6 +21,9 @@ export function SafeToSpendHero() {
   end.setDate(end.getDate() + e.days_left - 1);
   const endLabel = `${end.getDate()} ${MONTHS[end.getMonth()]}`;
   const over = e.pool_paise < 0;
+  // Nothing planned and no money recorded yet: the real issue is a missing balance.
+  const noBalance =
+    picture.total_paise <= 0 && picture.reserved_paise === 0 && picture.goals_paise === 0 && picture.buckets.length === 0;
 
   return (
     <View>
@@ -29,16 +33,24 @@ export function SafeToSpendHero() {
           {fmt(e.per_day_paise)}
         </Text>
         <Text style={[styles.sub, { color: p.textMuted }]}>
-          {over
+          {noBalance
+            ? 'Add what’s in your wallet and bank to see how much you can spend each day.'
+            : over
             ? `Your plans add up to ${fmt(-e.pool_paise)} more than you have. A small rebalance fixes it.`
             : `You have ${fmt(e.pool_paise)} free until ${endLabel} (${e.days_left} ${e.days_left === 1 ? 'day' : 'days'} left, including today).`}
         </Text>
-        <Pressable onPress={() => setOpen((o) => !o)} hitSlop={10} accessibilityRole="button" style={styles.toggle}>
-          <Text style={{ color: p.accent, fontWeight: '600' }}>{open ? 'Hide the maths' : 'How is this worked out?'}</Text>
-        </Pressable>
+        {noBalance ? (
+          <Pressable onPress={() => router.push('/accounts')} hitSlop={10} accessibilityRole="button" style={styles.toggle}>
+            <Text style={{ color: p.accent, fontWeight: '600' }}>Update balances ›</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={() => setOpen((o) => !o)} hitSlop={10} accessibilityRole="button" style={styles.toggle}>
+            <Text style={{ color: p.accent, fontWeight: '600' }}>{open ? 'Hide the maths' : 'How is this worked out?'}</Text>
+          </Pressable>
+        )}
       </View>
 
-      {open && (
+      {open && !noBalance && (
         <Card>
           {e.steps.map((s, i) => (
             <View
