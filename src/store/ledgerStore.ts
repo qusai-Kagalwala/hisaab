@@ -35,11 +35,24 @@ import {
   renameAccount,
   setSetting,
   SETTING_BUCKETS_OFF,
+  SETTING_CAPTURE_MODE,
   SETTING_LAST_ACCOUNT,
   SETTING_ROLLOVER_PREFIX,
   undoNewTransaction,
   type NewTransaction,
 } from '../db/queries';
+import {
+  addContribution,
+  addGoal,
+  deleteContribution,
+  learnMerchant,
+  listContributions,
+  listGoals,
+  listMerchantMemory,
+  listRecurringTransactionIds,
+  setGoalStatus,
+  updateGoal,
+} from '../db/smartQueries';
 import type { Db } from '../db/types';
 import {
   activeBuckets,
@@ -57,10 +70,14 @@ import {
   type SafeToSpend,
   type TemplateId,
 } from '../engine/buckets';
-import { monthKey, type MonthKey } from '../engine/calendar';
+import { monthKey, monthStartMs, shiftMonth, type MonthKey } from '../engine/calendar';
 import { ADJUSTMENT_CATEGORY } from '../engine/defaults';
 import { balanceAdjustment, computeBalances, resolveTransactions, type CorrectionInput } from '../engine/ledger';
+import { goalStatus, setAsideForGoals, splitContribution, type GoalStatus } from '../engine/goals';
+import { computeInsights, everydayExpenses, spendingByCategory, type Insight } from '../engine/insights';
 import type { Paise } from '../engine/money';
+import type { MerchantMemory } from '../engine/parser';
+import { lastEntry, quickPicks, type QuickPick } from '../engine/quickPicks';
 import { leftoverBuckets, planRollover, rolloverSource, type RolloverChoice } from '../engine/rollover';
 import { reservedThisMonth, type Recurring } from '../engine/recurring';
 import type { Account, AccountType, Category, EffectiveTransaction } from '../engine/types';
@@ -88,9 +105,25 @@ interface LedgerState {
   rollover: RolloverState | null;
   /** A bucket that just went over plan, for the "Cover it?" card. */
   overspentBucketId: number | null;
+  goals: GoalStatus[];
+  merchantMemory: MerchantMemory[];
+  insights: Insight[];
+  quickPicks: QuickPick[];
+  lastEntry: EffectiveTransaction | null;
+  /** Everyday spending this month by category (for chat). */
+  monthSpending: Map<number | null, Paise>;
+  captureMode: 'keypad' | 'text';
 
   load: (db: Db) => Promise<void>;
-  saveTransaction: (db: Db, tx: NewTransaction) => Promise<number>;
+  /** `learn`: remember note → category (text entries). */
+  saveTransaction: (db: Db, tx: NewTransaction, options?: { learn?: boolean }) => Promise<number>;
+  setCaptureMode: (db: Db, mode: 'keypad' | 'text') => Promise<void>;
+  addGoal: (db: Db, goal: { name: string; target_paise: Paise; target_date: number | null }) => Promise<number>;
+  updateGoal: (db: Db, id: number, goal: { name: string; target_paise: Paise; target_date: number | null }) => Promise<void>;
+  /** Put money into a goal (Savings bucket first, then free money). Returns an undo. */
+  contributeToGoal: (db: Db, goalId: number, amount: Paise) => Promise<() => Promise<void>>;
+  /** Finish ("done — use the money") or remove a goal; its money is released. Returns an undo. */
+  closeGoal: (db: Db, goalId: number, status: 'done' | 'removed') => Promise<() => Promise<void>>;
   undoNew: (db: Db, id: number) => Promise<boolean>;
   correct: (db: Db, current: EffectiveTransaction, next: CorrectionInput) => Promise<number | null>;
   setLastAccount: (db: Db, id: number) => Promise<void>;
@@ -121,7 +154,7 @@ interface LedgerState {
 }
 
 const EMPTY_PICTURE: MoneyPicture = {
-  total_paise: 0, reserved_paise: 0, buckets: [], in_buckets_paise: 0, unallocated_paise: 0, plan_pool_paise: 0,
+  total_paise: 0, reserved_paise: 0, goals_paise: 0, buckets: [], in_buckets_paise: 0, unallocated_paise: 0, plan_pool_paise: 0,
 };
 
 /** Current allocations of the buckets touched by `changes`, for undo. */
@@ -145,10 +178,26 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   rollover: null,
   overspentBucketId: null,
   bucketsOff: false,
+  goals: [],
+  merchantMemory: [],
+  insights: [],
+  quickPicks: [],
+  lastEntry: null,
+  monthSpending: new Map(),
+  captureMode: 'keypad',
 
   load: async (db) => {
     const now = Date.now();
     await generatePending(db, now);
+    const [goalsRaw, contributions, merchantMemory, recurringTxIds, modeRaw] = await Promise.all([
+      listGoals(db),
+      listContributions(db),
+      listMerchantMemory(db),
+      listRecurringTransactionIds(db),
+      getSetting(db, SETTING_CAPTURE_MODE),
+    ]);
+    const goals = goalsRaw.map((g) => goalStatus(g, contributions, now));
+    const goalsPaise = setAsideForGoals(goals);
     const [accounts, categories, rows, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
       listAccounts(db),
       listCategories(db),
@@ -168,7 +217,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     const month = monthKey(now);
     const reserved = reservedThisMonth(recurring, pending, now);
     const pictureFor = (buckets: Bucket[]) =>
-      computeMoneyPicture({ balances, buckets, transactions, reserved_paise: reserved });
+      computeMoneyPicture({ balances, buckets, transactions, reserved_paise: reserved, goals_paise: goalsPaise });
     const picture = pictureFor(activeBuckets(allBuckets, month));
 
     // New month with no buckets yet, but an earlier month had some → rollover.
@@ -206,10 +255,21 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
       safe: safeToSpend(picture, now),
       rollover,
       bucketsOff: offRaw === '1',
+      goals,
+      merchantMemory,
+      insights: computeInsights({
+        transactions, excludedIds: recurringTxIds, categories, buckets: picture.buckets, nowMs: now,
+      }),
+      quickPicks: quickPicks(transactions, now, recurringTxIds),
+      lastEntry: lastEntry(transactions, recurringTxIds),
+      monthSpending: spendingByCategory(
+        everydayExpenses(transactions, recurringTxIds), monthStartMs(month), monthStartMs(shiftMonth(month, 1)),
+      ),
+      captureMode: modeRaw === 'text' ? 'text' : 'keypad',
     });
   },
 
-  saveTransaction: async (db, tx) => {
+  saveTransaction: async (db, tx, options) => {
     const { picture } = get();
     const bucketId =
       tx.type === 'expense' && tx.bucket_id === undefined && tx.category_id !== ADJUSTMENT_CATEGORY.id
@@ -217,6 +277,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
         : tx.bucket_id ?? null;
     const id = await addTransaction(db, { ...tx, bucket_id: bucketId });
     await setSetting(db, SETTING_LAST_ACCOUNT, String(tx.account_id));
+    if (options?.learn && tx.note && tx.category_id != null) await learnMerchant(db, tx.note, tx.category_id);
     await get().load(db);
     if (bucketId != null) {
       const bucket = get().picture.buckets.find((b) => b.id === bucketId);
@@ -234,8 +295,58 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
 
   correct: async (db, current, next) => {
     const id = await correctTransaction(db, current, next);
+    // Changing the category of a noted entry teaches the parser.
+    const note = next.note?.trim() || current.note;
+    if (id != null && note && next.category_id != null && next.category_id !== current.category_id) {
+      await learnMerchant(db, note, next.category_id);
+    }
     await get().load(db);
     return id;
+  },
+
+  setCaptureMode: async (db, mode) => {
+    set({ captureMode: mode });
+    await setSetting(db, SETTING_CAPTURE_MODE, mode);
+  },
+
+  addGoal: async (db, goal) => {
+    const id = await addGoal(db, goal);
+    await get().load(db);
+    return id;
+  },
+
+  updateGoal: async (db, id, goal) => {
+    await updateGoal(db, id, goal);
+    await get().load(db);
+  },
+
+  contributeToGoal: async (db, goalId, amount) => {
+    const { picture, allBuckets } = get();
+    const savings = picture.buckets.find((b) => b.role === 'savings');
+    const { fromSavings } = splitContribution(amount, savings?.remaining_paise ?? 0, picture.unallocated_paise);
+    const change = savings && fromSavings > 0 ? [{ id: savings.id, allocated_paise: savings.allocated_paise - fromSavings }] : [];
+    const previous = previousAllocations(allBuckets, change);
+    if (change.length) await setAllocations(db, change);
+    const contributionId = await addContribution(db, goalId, amount);
+    await get().load(db);
+    return async () => {
+      await deleteContribution(db, contributionId);
+      if (previous.length) await setAllocations(db, previous);
+      await get().load(db);
+    };
+  },
+
+  closeGoal: async (db, goalId, status) => {
+    const goal = get().goals.find((g) => g.id === goalId);
+    if (!goal) throw new Error('Goal not found');
+    const releaseId = goal.saved_paise !== 0 ? await addContribution(db, goalId, -goal.saved_paise) : null;
+    await setGoalStatus(db, goalId, status);
+    await get().load(db);
+    return async () => {
+      if (releaseId != null) await deleteContribution(db, releaseId);
+      await setGoalStatus(db, goalId, 'active');
+      await get().load(db);
+    };
   },
 
   setLastAccount: async (db, id) => {

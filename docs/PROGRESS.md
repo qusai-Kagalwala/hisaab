@@ -4,7 +4,7 @@ Claude updates this file at the end of every phase.
 Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Current phase
-Phase 2 — Money model ✅ (awaiting owner review) · next: Phase 3 — Smarts offline
+Phase 3 — Smarts offline ✅ (awaiting owner review) · next: Phase 4 — AI
 
 ## Phase 1 — Foundation ✅
 - [x] Expo + TypeScript project setup, lint, Jest
@@ -45,16 +45,21 @@ Notes:
 - "Custom" recurring rule from SPEC is not built yet (monthly/weekly only).
 - Dev tip: run with `npx expo start --tunnel` if the phone can't reach the laptop.
 
-## Phase 3 — Smarts offline ⬜
-- [ ] Goals + ETA
-- [ ] What-if slider
-- [ ] Text parser (₹200 lunch, 2k, Hinglish keywords) + tests
-- [ ] Voice entry
-- [ ] merchant_memory learning
-- [ ] Quick-add chips + repeat last
-- [ ] Rule-based insights
-- [ ] Can I afford this?
-- [ ] Offline chat intents + templated answers
+## Phase 3 — Smarts offline ✅
+- [x] Goals + ETA (pace = last 90 days, Savings bucket first, then free money)
+- [x] What-if slider (+₹0…₹20,000/month → ETA)
+- [x] Text parser (₹200 lunch, 2k, 1.5k, 1,00,000, Hinglish/Devanagari keywords + spoken numbers) + tests
+- [x] Voice entry — via the phone keyboard's own mic in text mode (in-app mic moves to Phase 5 dev build)
+- [x] merchant_memory learning (tap a category for a noted entry, or change it in Edit)
+- [x] Quick-add chips (1 tap) + long-press amount to repeat last
+- [x] Rule-based insights (pace, bucket ≥80%, category vs same days last month)
+- [x] Can I afford this? (bucket, safe-to-spend, days of free money, goal delay)
+- [x] Offline chat intents + templated answers (English + Hinglish, basic Devanagari)
+
+Notes:
+- Engine: `src/engine/{parser,goals,insights,afford,quickPicks,chat}.ts`; data: `src/db/smartQueries.ts`; migration 4.
+- Typing uses the phone's own keyboard (no custom keyboard); the capture screen remembers keypad vs text mode.
+- Chat context builder for Phase 4 already exists as `chatContext()` in `src/store/chatStore.ts` — move/trim into `src/ai/context.ts`.
 
 ## Phase 4 — AI ⬜
 - [ ] Gemini client + configurable fallback chain
@@ -75,6 +80,7 @@ Notes:
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-28 — Phase 3 Smarts offline built: text/voice-via-keyboard entry with parser + merchant learning, quick chips, repeat last, goals + what-if, insights, can-I-afford, offline Hinglish chat; 191 tests, tsc, lint green; browser run-through passed — next: owner review, then Phase 4 plan.
 - 2026-09-28 — Buckets can be removed any time (card "Remove", detail screen) or all turned off, with undo; fixed bucket-detail crash (unstable zustand selector), nested buttons, and back navigation after template pick; 102 tests — next: owner re-tests, then Phase 3 plan.
 - 2026-09-28 — Phase 2 Money model built: recurring + confirm cards, buckets/templates/plan/move/cover, rollover, Home + safe-to-spend, balance updates; 97 tests, tsc, lint green; browser run-through incl. month change passed — next: owner review, then Phase 3 plan.
 - 2026-09-28 — Fix: pinned reanimated/worklets/gesture-handler to SDK 57 versions (npm had pulled newer ones → Expo Go crash); metro.config.js for expo-sqlite on web (wasm + COOP/COEP); boxShadow instead of shadow* — next: owner re-tests on phone.

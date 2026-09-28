@@ -79,6 +79,10 @@ function AppStack() {
         <Stack.Screen name="rollover" options={{ title: 'New month' }} />
         <Stack.Screen name="recurring/index" options={{ title: 'Bills & income' }} />
         <Stack.Screen name="recurring/edit" options={{ title: 'Add bill or income' }} />
+        <Stack.Screen name="goals/index" options={{ title: 'Goals' }} />
+        <Stack.Screen name="goals/[id]" options={{ title: 'Goal' }} />
+        <Stack.Screen name="afford" options={{ title: 'Can I afford this?' }} />
+        <Stack.Screen name="chat" options={{ title: 'Ask Hisaab' }} />
       </Stack>
       <UndoToast />
     </View>

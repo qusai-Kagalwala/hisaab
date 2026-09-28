@@ -151,6 +151,14 @@ const MIGRATIONS: readonly ((db: Db) => Promise<void>)[] = [
   async (db) => {
     await db.execAsync('ALTER TABLE buckets ADD COLUMN removed INTEGER NOT NULL DEFAULT 0;');
   },
+
+  // 4 — goals can be finished or removed; chat history keeps the language.
+  async (db) => {
+    await db.execAsync(`
+      ALTER TABLE goals ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done', 'removed'));
+      CREATE INDEX idx_goal_contributions_goal ON goal_contributions(goal_id);
+    `);
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS.length;

@@ -161,5 +161,7 @@ export async function getSettingsWithPrefix(db: Db, prefix: string): Promise<Map
 export const SETTING_LAST_ACCOUNT = 'last_account_id';
 /** '1' after the user turned buckets off (stop suggesting them). */
 export const SETTING_BUCKETS_OFF = 'buckets_off';
+/** 'keypad' (default) or 'text' — how the capture screen opens. */
+export const SETTING_CAPTURE_MODE = 'capture_mode';
 /** Remembered month-end choice per bucket name: `rollover:<name>` → keep|savings|flexible. */
 export const SETTING_ROLLOVER_PREFIX = 'rollover:';

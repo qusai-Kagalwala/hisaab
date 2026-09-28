@@ -2,9 +2,9 @@
  * Buckets are planned money, never expenses. Everything here is derived:
  *
  *   remaining(bucket) = allocated − this bucket's expenses
- *   unallocated       = account totals − reserved bills − Σ remaining
+ *   unallocated       = account totals − reserved bills − goals − Σ remaining
  *
- * so the invariant  Σ remaining + reserved + unallocated == account totals
+ * so the invariant  Σ remaining + reserved + goals + unallocated == account totals
  * holds by construction, and the functions that change allocations
  * (move, cover, split) are tested to keep it.
  */
@@ -42,6 +42,8 @@ export interface MoneyPicture {
   total_paise: Paise;
   /** Fixed bills still to pay this month. */
   reserved_paise: Paise;
+  /** Set aside in active goals. */
+  goals_paise: Paise;
   buckets: BucketStatus[];
   /** Σ remaining across this month's buckets. */
   in_buckets_paise: Paise;
@@ -65,9 +67,12 @@ export function computeMoneyPicture(input: {
   buckets: readonly Bucket[];
   transactions: readonly EffectiveTransaction[];
   reserved_paise: Paise;
+  goals_paise?: Paise;
 }): MoneyPicture {
   const total = addPaise(...input.balances.values());
+  const goals = input.goals_paise ?? 0;
   assertPaise(input.reserved_paise);
+  assertPaise(goals);
   const spending = bucketSpending(input.transactions);
   const buckets = [...input.buckets]
     .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
@@ -76,11 +81,12 @@ export function computeMoneyPicture(input: {
       return { ...b, spent_paise: spent, remaining_paise: subtractPaise(b.allocated_paise, spent) };
     });
   const inBuckets = addPaise(...buckets.map((b) => b.remaining_paise));
-  const unallocated = subtractPaise(subtractPaise(total, input.reserved_paise), inBuckets);
+  const unallocated = subtractPaise(subtractPaise(subtractPaise(total, input.reserved_paise), goals), inBuckets);
   const allocated = addPaise(...buckets.map((b) => b.allocated_paise));
   return {
     total_paise: total,
     reserved_paise: input.reserved_paise,
+    goals_paise: goals,
     buckets,
     in_buckets_paise: inBuckets,
     unallocated_paise: unallocated,

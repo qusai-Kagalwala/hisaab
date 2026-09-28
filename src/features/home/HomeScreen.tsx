@@ -7,6 +7,7 @@ import { Button, Card, ProgressBar, SectionTitle } from '../../components/ui';
 import { monthName } from '../../engine/calendar';
 import { formatINR } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
+import { monthLabel } from '../goals/goalText';
 
 export function HomeScreen() {
   const p = usePalette();
@@ -16,6 +17,9 @@ export function HomeScreen() {
   const rollover = useLedgerStore((s) => s.rollover);
   const hasEntries = useLedgerStore((s) => s.transactions.length > 0);
   const hasBuckets = picture.buckets.length > 0;
+  const insights = useLedgerStore((s) => s.insights);
+  const goals = useLedgerStore((s) => s.goals);
+  const activeGoals = goals.filter((g) => g.status === 'active');
   const bucketsOff = useLedgerStore((s) => s.bucketsOff);
 
   return (
@@ -30,6 +34,11 @@ export function HomeScreen() {
             ? `You're ${formatINR(safe.over_paise, { paise: 'never' })} over plan this month. A small rebalance fixes it.`
             : `${formatINR(safe.pool_paise, { paise: 'never' })} free for the next ${safe.days_left} ${safe.days_left === 1 ? 'day' : 'days'}`}
         </Text>
+      </View>
+
+      <View style={styles.quickRow}>
+        <Button label="Can I afford…?" variant="secondary" compact onPress={() => router.push('/afford')} style={styles.flex} />
+        <Button label="💬 Ask Hisaab" variant="secondary" compact onPress={() => router.push('/chat')} style={styles.flex} />
       </View>
 
       {!hasEntries && (
@@ -57,6 +66,15 @@ export function HomeScreen() {
       ))}
 
       <OverspendCard />
+
+      {insights.map((i) => (
+        <Card key={i.id}>
+          <Text style={{ color: p.text, lineHeight: 20 }}>
+            {i.kind === 'trend_down' ? '🌱 ' : '💡 '}
+            {i.text}
+          </Text>
+        </Card>
+      ))}
 
       {hasBuckets && picture.unallocated_paise > 0 && (
         <Card>
@@ -102,11 +120,41 @@ export function HomeScreen() {
         </>
       )}
 
+      <SectionTitle>Goals</SectionTitle>
+      {activeGoals.length === 0 ? (
+        <Pressable onPress={() => router.push('/goals')} accessibilityRole="button">
+          <Text style={{ color: p.textMuted }}>Saving up for something? Add a goal and see when you&apos;ll get there ›</Text>
+        </Pressable>
+      ) : (
+        activeGoals.slice(0, 3).map((g) => (
+          <Pressable
+            key={g.id}
+            onPress={() => router.push({ pathname: '/goals/[id]', params: { id: String(g.id) } })}
+            accessibilityRole="button"
+          >
+            <View style={styles.bucketRow}>
+              <View style={styles.bucketText}>
+                <Text style={[styles.bucketName, { color: p.text }]}>{g.name}</Text>
+                <Text style={{ color: p.textMuted, fontSize: 13 }}>
+                  {g.remaining_paise === 0
+                    ? 'Reached! 🎉'
+                    : g.eta_month
+                      ? `by ${monthLabel(g.eta_month)}`
+                      : `${formatINR(g.saved_paise, { paise: 'never' })} of ${formatINR(g.target_paise, { paise: 'never' })}`}
+                </Text>
+              </View>
+              <ProgressBar fraction={g.saved_paise / g.target_paise} />
+            </View>
+          </Pressable>
+        ))
+      )}
+
       <SectionTitle>This month</SectionTitle>
       <Card>
         <Row label="In your accounts" value={formatINR(picture.total_paise)} />
         <Row label="Kept for bills" value={formatINR(picture.reserved_paise)} />
         {hasBuckets && <Row label="In buckets" value={formatINR(picture.in_buckets_paise)} />}
+        {picture.goals_paise > 0 && <Row label="Set aside in goals" value={formatINR(picture.goals_paise)} />}
         <Row
           label={picture.unallocated_paise >= 0 ? 'Unallocated' : 'Planned more than you have'}
           value={formatINR(Math.abs(picture.unallocated_paise))}
@@ -115,6 +163,7 @@ export function HomeScreen() {
 
       <View style={styles.links}>
         <Link href="/buckets" style={[styles.link, { color: p.accent }]}>Buckets</Link>
+        <Link href="/goals" style={[styles.link, { color: p.accent }]}>Goals</Link>
         <Link href="/recurring" style={[styles.link, { color: p.accent }]}>Bills & income</Link>
         <Link href="/accounts" style={[styles.link, { color: p.accent }]}>Accounts</Link>
         <Link href="/history" style={[styles.link, { color: p.accent }]}>History</Link>
@@ -145,6 +194,8 @@ const styles = StyleSheet.create({
   bucketRow: { gap: 6, paddingVertical: 6 },
   bucketText: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   bucketName: { fontSize: 15, fontWeight: '600' },
+  quickRow: { flexDirection: 'row', gap: 8 },
+  flex: { flex: 1 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   rowValue: { fontWeight: '600', fontVariant: ['tabular-nums'] },
   links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingVertical: 8, gap: 8 },
