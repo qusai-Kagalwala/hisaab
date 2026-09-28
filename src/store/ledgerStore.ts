@@ -113,6 +113,8 @@ interface LedgerState {
   /** Everyday spending this month by category (for chat). */
   monthSpending: Map<number | null, Paise>;
   captureMode: 'keypad' | 'text';
+  /** Transactions from confirmed bills/income (left out of everyday stats). */
+  recurringTxIds: Set<number>;
 
   load: (db: Db) => Promise<void>;
   /** `learn`: remember note → category (text entries). */
@@ -185,6 +187,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   lastEntry: null,
   monthSpending: new Map(),
   captureMode: 'keypad',
+  recurringTxIds: new Set(),
 
   load: async (db) => {
     const now = Date.now();
@@ -266,6 +269,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
         everydayExpenses(transactions, recurringTxIds), monthStartMs(month), monthStartMs(shiftMonth(month, 1)),
       ),
       captureMode: modeRaw === 'text' ? 'text' : 'keypad',
+      recurringTxIds,
     });
   },
 

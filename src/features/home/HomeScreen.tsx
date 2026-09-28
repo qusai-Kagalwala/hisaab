@@ -2,6 +2,7 @@ import { Link, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { OverspendCard } from '../../components/OverspendCard';
 import { PendingCard } from '../../components/PendingCard';
+import { WeeklyCard } from '../../components/WeeklyCard';
 import { usePalette } from '../../components/theme';
 import { Button, Card, ProgressBar, SectionTitle } from '../../components/ui';
 import { monthName } from '../../engine/calendar';
@@ -40,6 +41,12 @@ export function HomeScreen() {
         <Button label="Can I afford…?" variant="secondary" compact onPress={() => router.push('/afford')} style={styles.flex} />
         <Button label="💬 Ask Hisaab" variant="secondary" compact onPress={() => router.push('/chat')} style={styles.flex} />
       </View>
+      <View style={styles.quickRow}>
+        <Button label="📊 Insights" variant="secondary" compact onPress={() => router.push('/insights')} style={styles.flex} />
+        <Button label="💡 Ideas under ₹X" variant="secondary" compact onPress={() => router.push('/ideas')} style={styles.flex} />
+      </View>
+
+      <WeeklyCard />
 
       {!hasEntries && (
         <Card>
@@ -166,6 +173,7 @@ export function HomeScreen() {
         <Link href="/goals" style={[styles.link, { color: p.accent }]}>Goals</Link>
         <Link href="/recurring" style={[styles.link, { color: p.accent }]}>Bills & income</Link>
         <Link href="/accounts" style={[styles.link, { color: p.accent }]}>Accounts</Link>
+        <Link href="/settings" style={[styles.link, { color: p.accent }]}>Settings & backup</Link>
         <Link href="/history" style={[styles.link, { color: p.accent }]}>History</Link>
       </View>
 

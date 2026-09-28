@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePalette } from '../components/theme';
 import { UndoToast } from '../components/UndoToast';
 import { migrate } from '../db/migrations';
+import { useAiStore } from '../store/aiStore';
 import { useLedgerStore } from '../store/ledgerStore';
 
 export const DATABASE_NAME = 'hisaab.db';
@@ -27,18 +28,20 @@ function LedgerLoader({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
   const loaded = useLedgerStore((s) => s.loaded);
   const load = useLedgerStore((s) => s.load);
+  const loadAi = useAiStore((s) => s.load);
   const p = usePalette();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     load(db).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+    loadAi(db).catch(() => undefined);
     // Coming back to the app may be a new day or month: due bills, rollover,
     // safe-to-spend all depend on the date.
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') load(db).catch(() => undefined);
     });
     return () => sub.remove();
-  }, [db, load]);
+  }, [db, load, loadAi]);
 
   if (!loaded) {
     return (
@@ -83,6 +86,9 @@ function AppStack() {
         <Stack.Screen name="goals/[id]" options={{ title: 'Goal' }} />
         <Stack.Screen name="afford" options={{ title: 'Can I afford this?' }} />
         <Stack.Screen name="chat" options={{ title: 'Ask Hisaab' }} />
+        <Stack.Screen name="insights" options={{ title: 'Insights' }} />
+        <Stack.Screen name="ideas" options={{ title: 'Ideas' }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings & backup' }} />
       </Stack>
       <UndoToast />
     </View>

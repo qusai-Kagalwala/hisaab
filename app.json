@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "hisaab",
+    "name": "Hisaab",
     "slug": "hisaab",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,14 +16,18 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.qusaikagalwala.hisaab",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "scheme": "hisaab"
   }

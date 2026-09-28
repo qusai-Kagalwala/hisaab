@@ -43,4 +43,11 @@ Add new entries at the bottom: date, decision, reason.
 | 36 | Insights compare this month so far with the same days last month (≥₹500 base, ≥25% change), plus bucket ≥80% and pace projections from day 5; balance updates and confirmed bills excluded | Fair comparisons, no noise, no shame |
 | 37 | Merchant memory learns only when the user picks/changes a category for a noted entry; a correction replaces the old mapping | Learns from real choices, not from guesses |
 | 38 | Offline chat answers only from engine numbers via templates; products (stocks/funds/loans/insurance) are always declined; tips carry "not financial advice" | Guardrails from SPEC §7.8 before any AI exists |
+| 39 | Gemini key is the user's own, stored only in expo-secure-store; sent as a header, only to Google; not in backups | Privacy; no server |
+| 40 | Model chain is picked from the key's own `models.list` (no hard-coded model names); fallback on 429/5xx/404 only | Model names change; avoids stale IDs |
+| 41 | AI replies are discarded unless every ₹ amount / number ≥100 appears in the facts sent, and they mention no financial products; product questions never reach the AI | Engine calculates, AI explains; no advice |
+| 42 | Suggested actions (e.g. "Move ₹X from Flexible") are produced by the engine, shown under the answer, and run only on a tap (with undo) | AI never executes or invents actions |
+| 43 | Charts: ranked horizontal bars for categories (not a donut), one-axis grouped bars for in/out, daily bars with a safe-to-spend reference line; blue/orange validated for CVD in both themes | Readability and accessibility |
+| 44 | Backup/restore moved into Phase 4; restore replaces everything in one DB transaction and keeps a safety copy for Undo | Needed to move data from Expo Go to the APK |
+| 45 | Distribution: EAS cloud build → APK (`preview` profile); no hosting needed. Optional static web export with COOP/COEP `_headers` | Offline-first app has no server |
 

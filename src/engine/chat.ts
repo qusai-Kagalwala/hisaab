@@ -41,6 +41,46 @@ export interface ChatAnswer {
   text: string;
 }
 
+/** An action the engine suggests; it only runs after the user taps confirm. */
+export interface SuggestedAction {
+  kind: 'move';
+  from_id: number;
+  to_id: number;
+  amount_paise: Paise;
+  label: string;
+}
+
+/**
+ * Suggest covering a bucket that is (or would be) over plan from Flexible or
+ * another bucket with money left. The AI never creates actions.
+ */
+export function suggestAction(text: string, ctx: ChatContext): SuggestedAction | null {
+  const intent = detectIntent(text, ctx);
+  const t = ` ${normalizeText(text)} `;
+  let target: { id: number; name: string; short: Paise } | null = null;
+  if (intent === 'bucket_left') {
+    const b = ctx.picture.buckets.find((x) => t.includes(` ${x.name.toLowerCase()} `));
+    if (b && b.remaining_paise < 0) target = { id: b.id, name: b.name, short: -b.remaining_paise };
+  } else if (intent === 'afford') {
+    const parsed = parseEntry(text, ctx.categories);
+    if (parsed.amount_paise) {
+      const r = canIAfford({ picture: ctx.picture, amount_paise: parsed.amount_paise, category_id: parsed.category_id, goals: ctx.goals, nowMs: ctx.nowMs });
+      const b = ctx.picture.buckets.find((x) => x.name === r.bucket?.name);
+      if (r.verdict === 'bucket_over' && b && r.bucket) target = { id: b.id, name: b.name, short: -r.bucket.remaining_after };
+    }
+  }
+  if (!target) return null;
+  const source = ctx.picture.buckets
+    .filter((b) => b.id !== target!.id && b.remaining_paise > 0)
+    .sort((a, b) => Number(b.role === 'flexible') - Number(a.role === 'flexible'))[0];
+  if (!source) return null;
+  const amount = Math.min(target.short, source.remaining_paise);
+  return {
+    kind: 'move', from_id: source.id, to_id: target.id, amount_paise: amount,
+    label: `Move ${fmt(amount)} from ${source.name} to ${target.name}`,
+  };
+}
+
 const HINGLISH = new Set([
   'kitna', 'kitne', 'kitni', 'hai', 'hain', 'kya', 'mein', 'mera', 'meri', 'mere', 'bacha', 'bache', 'kab',
   'sakta', 'sakti', 'sakte', 'paisa', 'paise', 'kharcha', 'kharch', 'kaha', 'kahan', 'kaise', 'hu', 'hoon',

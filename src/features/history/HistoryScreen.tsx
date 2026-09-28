@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { usePalette } from '../../components/theme';
@@ -12,17 +12,26 @@ export function HistoryScreen() {
   const transactions = useLedgerStore((s) => s.transactions);
   const categories = useLedgerStore((s) => s.categories);
   const accounts = useLedgerStore((s) => s.accounts);
+  const { category } = useLocalSearchParams<{ category?: string }>();
+  const categoryFilter = category != null ? Number(category) : null;
 
   const sections = useMemo(
-    () => groupByDay(transactions).map((g) => ({ ...g, data: g.transactions })),
-    [transactions],
+    () =>
+      groupByDay(categoryFilter == null ? transactions : transactions.filter((t) => t.category_id === categoryFilter)).map(
+        (g) => ({ ...g, data: g.transactions }),
+      ),
+    [transactions, categoryFilter],
   );
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
 
+  const filterTitle =
+    categoryFilter != null ? categories.find((c) => c.id === categoryFilter)?.name ?? 'History' : 'History';
+
   if (sections.length === 0) {
     return (
       <View style={[styles.empty, { backgroundColor: p.background }]}>
+        <Stack.Screen options={{ title: filterTitle }} />
         <Text style={[styles.emptyTitle, { color: p.text }]}>Nothing logged yet</Text>
         <Text style={{ color: p.textMuted, textAlign: 'center' }}>
           Your entries will show up here. Go back and log your first chai ☕
@@ -38,6 +47,7 @@ export function HistoryScreen() {
       sections={sections}
       keyExtractor={(item) => String(item.id)}
       stickySectionHeadersEnabled={false}
+      ListHeaderComponent={<Stack.Screen options={{ title: filterTitle }} />}
       renderSectionHeader={({ section }) => (
         <View style={styles.header}>
           <Text style={[styles.headerDay, { color: p.text }]}>{dayLabel(section.dayStart)}</Text>

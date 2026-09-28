@@ -13,6 +13,10 @@ export interface Palette {
   positive: string;
   toast: string;
   toastText: string;
+  /** Chart series — validated for colour-blind separation on these surfaces. */
+  series1: string;
+  series2: string;
+  grid: string;
 }
 
 // Calm palette on purpose: no red "shame" states anywhere.
@@ -29,6 +33,9 @@ const light: Palette = {
   positive: '#1F7A5C',
   toast: '#1B1B1A',
   toastText: '#FFFFFF',
+  series1: '#2a78d6',
+  series2: '#eb6834',
+  grid: '#E9E9E4',
 };
 
 const dark: Palette = {
@@ -44,6 +51,9 @@ const dark: Palette = {
   positive: '#4CC79B',
   toast: '#F2F2EE',
   toastText: '#121212',
+  series1: '#3987e5',
+  series2: '#d95926',
+  grid: '#2C2C29',
 };
 
 export function usePalette(): Palette {

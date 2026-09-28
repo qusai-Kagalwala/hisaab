@@ -1,5 +1,5 @@
 import type { BucketStatus, MoneyPicture } from '../buckets';
-import { answer, detectIntent, detectLang, type ChatContext } from '../chat';
+import { answer, detectIntent, detectLang, suggestAction, type ChatContext } from '../chat';
 import { CATEGORY_ID as C, DEFAULT_CATEGORIES } from '../defaults';
 import type { GoalStatus } from '../goals';
 
@@ -80,5 +80,21 @@ describe('answers use engine numbers only', () => {
   it('never recommends products; tips carry a note', () => {
     expect(answer('which mutual fund should I buy', ctx).text).toContain("can't recommend");
     expect(answer('How do I save more?', ctx).text).toContain('not financial advice');
+  });
+});
+
+describe('suggested actions', () => {
+  it('suggests covering an overspend from Flexible, only as a suggestion', () => {
+    const over = { ...fun, remaining_paise: -20_000, spent_paise: 320_000 };
+    const c = { ...ctx, picture: { ...picture, buckets: [over, flexible] } };
+    expect(suggestAction('entertainment mein kitna bacha', c)).toEqual({
+      kind: 'move', from_id: 9, to_id: 2, amount_paise: 20_000, label: 'Move ₹200 from Flexible to Entertainment',
+    });
+    expect(suggestAction('How much do I have?', c)).toBeNull();
+  });
+
+  it('suggests topping up before a purchase that would go over', () => {
+    const a = suggestAction('Can I afford ₹3,000 movie tickets?', ctx);
+    expect(a).toMatchObject({ from_id: 9, to_id: 2, amount_paise: 45_000 });
   });
 });

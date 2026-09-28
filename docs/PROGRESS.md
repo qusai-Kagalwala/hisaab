@@ -4,7 +4,7 @@ Claude updates this file at the end of every phase.
 Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Current phase
-Phase 3 — Smarts offline ✅ (awaiting owner review) · next: Phase 4 — AI
+Phase 4 — AI + charts + backup ✅ (awaiting owner review) · next: Phase 5 — Widget & polish (needs the APK)
 
 ## Phase 1 — Foundation ✅
 - [x] Expo + TypeScript project setup, lint, Jest
@@ -61,25 +61,29 @@ Notes:
 - Typing uses the phone's own keyboard (no custom keyboard); the capture screen remembers keypad vs text mode.
 - Chat context builder for Phase 4 already exists as `chatContext()` in `src/store/chatStore.ts` — move/trim into `src/ai/context.ts`.
 
-## Phase 4 — AI ⬜
-- [ ] Gemini client + configurable fallback chain
-- [ ] Task tiering (light vs strong model)
-- [ ] Context Builder (minimum data)
-- [ ] Hisaab Assistant chat + quick chips
-- [ ] Guardrails (no invented numbers, no product advice, confirm actions)
-- [ ] Weekly summary (opt-in)
-- [ ] Ideas: price-band suggestions + offline fallback
-- [ ] AI-off switch + data disclosure screen
+## Phase 4 — AI (+ charts, backup, APK setup) ✅
+- [x] Gemini client + configurable fallback chain (429/5xx/404 → next model; one key, never rotated)
+- [x] Task tiering (goal/tips/weekly prefer "pro"-style models; the rest in chain order)
+- [x] Context Builder (`src/ai/context.ts`) — only intent-specific engine totals; never notes/entries/account names
+- [x] Hisaab Assistant chat + quick chips (AI explains; offline fallback)
+- [x] Guardrails: number guard (AI numbers must come from facts), product filter, product questions never sent, actions only on confirm tap
+- [x] Weekly summary (opt-in, once per week, cached)
+- [x] Ideas: price bands with Google Search grounding + offline evergreen list
+- [x] AI-off switch + "what is sent" explainer; key in expo-secure-store; models chosen from the key's own list
+- [x] Charts (Insights): category ranking, day-by-day vs safe-to-spend, 6-month in vs out (palette validated for CVD, light+dark)
+- [x] Backup export/import (moved up from Phase 5) with preview + undo
+- [x] APK build config (`eas.json`, `android.package`) + `docs/INSTALL.md`
 
 ## Phase 5 — Polish ⬜
 - [ ] Android widget (dev build)
 - [ ] Quick-settings tile
 - [ ] Onboarding (3 questions)
-- [ ] JSON export/import
+- [x] JSON export/import (done in Phase 4)
 - [ ] Final UX pass + 3-second chai test
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-28 — Phase 4 built: Gemini (own key, fallback chain, context builder, number guard), AI chat/weekly/Ideas with offline fallbacks, Insights charts, backup export/import, EAS APK config + INSTALL.md; 221 tests, tsc, lint green; Android+web bundles build; browser run-through passed — next: owner builds APK, then Phase 5 (widget).
 - 2026-09-28 — Phase 3 Smarts offline built: text/voice-via-keyboard entry with parser + merchant learning, quick chips, repeat last, goals + what-if, insights, can-I-afford, offline Hinglish chat; 191 tests, tsc, lint green; browser run-through passed — next: owner review, then Phase 4 plan.
 - 2026-09-28 — Buckets can be removed any time (card "Remove", detail screen) or all turned off, with undo; fixed bucket-detail crash (unstable zustand selector), nested buttons, and back navigation after template pick; 102 tests — next: owner re-tests, then Phase 3 plan.
 - 2026-09-28 — Phase 2 Money model built: recurring + confirm cards, buckets/templates/plan/move/cover, rollover, Home + safe-to-spend, balance updates; 97 tests, tsc, lint green; browser run-through incl. month change passed — next: owner review, then Phase 3 plan.

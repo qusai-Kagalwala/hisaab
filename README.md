@@ -26,6 +26,9 @@ npx expo start
 ```
 Scan the QR code with Expo Go on your phone.
 
+## Install on your phone
+See **[docs/INSTALL.md](docs/INSTALL.md)**: build a free APK with Expo (EAS) and install it.
+
 ## Docs
 - [Specification](docs/SPEC.md)
 - [Progress](docs/PROGRESS.md)

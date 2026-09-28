@@ -1,0 +1,5 @@
+# Needed only for the optional web version (Netlify / Cloudflare Pages):
+# SQLite on the web uses SharedArrayBuffer, which requires cross-origin isolation.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
