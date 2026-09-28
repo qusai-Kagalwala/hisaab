@@ -19,3 +19,11 @@ Add new entries at the bottom: date, decision, reason.
 | 12 | Offline heuristic engine as base layer; AI enhances | Works without internet |
 | 13 | Chatbot never recommends financial products | Safety; not a financial advisor |
 | 14 | React Native (Expo) + SQLite | Fits existing React skills; local storage |
+| 15 | Edit = correction row holding the **full** new values, `corrects_id` → original; latest correction (highest id) wins; delete = correction with amount 0 | Diff-style corrections can't express category/account changes |
+| 16 | Undo within the 5s window after **creating** an entry hard-deletes that row (only if uncorrected); undo of an edit/delete appends a restoring correction | A mistaken tap never happened; everything else stays append-only |
+| 17 | `transactions.amount_paise` is always ≥ 0; the sign comes from `type`. DB trigger blocks every UPDATE on transactions | Enforce immutability at the lowest level |
+| 18 | Timestamps are INTEGER epoch ms; a correction's `created_at` is when it was made, the entry's date stays the original's | Clear audit trail; date editing deferred |
+| 19 | Added `categories.kind` (expense/income) to the SPEC schema; default category ids are fixed so engine rules survive renames | Capture shows only relevant categories; guesses need stable ids |
+| 20 | Capture has a "Spent / Money in" toggle (expense default) | Balances need income before recurring arrives in Phase 2 |
+| 21 | Routes in `src/app/` (Expo Router) are thin wrappers over `src/features/` screens | Satisfies both AGENTS.md (router) and CLAUDE.md (features folders) |
+| 22 | Category guess is time-of-day only for expenses; no guess for income or late night | Don't assume salary vs pocket money; a wrong highlight is worse than none |
