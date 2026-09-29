@@ -27,8 +27,8 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       <View style={[styles.center, { backgroundColor: p.background, gap: 12 }]}>
         <Text style={{ color: p.text, fontSize: 18, fontWeight: '700', textAlign: 'center' }}>Something went wrong on this screen</Text>
         <Text style={{ color: p.textMuted, textAlign: 'center' }}>
-          Your entries are safe — they were saved the moment you logged them. Try again, and if it keeps happening, tell the
-          developer what you tapped.
+          Your entries are safe — they were saved the moment you logged them. Tap Try again. If it keeps happening, close
+          Hisaab from your recent apps and open it again.
         </Text>
         <Text style={{ color: p.textMuted, fontSize: 12, textAlign: 'center' }} selectable>
           {error.message}

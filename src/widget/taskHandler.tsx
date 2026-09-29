@@ -1,5 +1,5 @@
 /** Background task for widget events (runs even when the app is closed). */
-import { openDatabaseAsync } from 'expo-sqlite';
+import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { migrate } from '../db/migrations';
 import { DATABASE_NAME } from '../db/name';
@@ -8,8 +8,13 @@ import { quickLogWidget } from './QuickLogWidget';
 
 export async function widgetTaskHandler({ widgetAction, clickAction, clickActionData, renderWidget }: WidgetTaskHandlerProps) {
   if (widgetAction === 'WIDGET_DELETED') return;
+  // The widget gets its OWN connection. Without useNewConnection, expo-sqlite
+  // hands back the app's connection, and when this task's handle is cleaned
+  // up it closes that shared connection under the running app
+  // ("NativeDatabase.execAsync rejected — NullPointerException").
+  let db: SQLiteDatabase | null = null;
   try {
-    const db = await openDatabaseAsync(DATABASE_NAME);
+    db = await openDatabaseAsync(DATABASE_NAME, { useNewConnection: true });
     await migrate(db);
     if (widgetAction === 'WIDGET_CLICK') {
       try {
@@ -30,5 +35,7 @@ export async function widgetTaskHandler({ widgetAction, clickAction, clickAction
   } catch {
     // Never leave "Problem loading widget": show a plain widget whose + still opens the app.
     renderWidget(quickLogWidget(EMPTY_WIDGET_STATE));
+  } finally {
+    await db?.closeAsync().catch(() => undefined);
   }
 }
