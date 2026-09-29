@@ -1,4 +1,4 @@
-import { balanceAdjustment, buildCorrection, computeBalances, groupByDay, resolveTransactions, signedAmount } from '../ledger';
+import { balanceAdjustment, buildCorrection, computeBalances, extendLedger, groupByDay, indexLedger, resolveTransactions, signedAmount } from '../ledger';
 import type { TransactionRow } from '../types';
 
 let nextId = 1;
@@ -190,5 +190,47 @@ describe('buildCorrection bucket', () => {
     expect(buildCorrection(current, base)).toBeNull();
     expect(buildCorrection(current, { ...base, bucket_id: 4 })?.bucket_id).toBe(4);
     expect(buildCorrection(current, { ...base, bucket_id: null })?.bucket_id).toBeNull();
+  });
+});
+
+describe('extendLedger (incremental) matches resolveTransactions', () => {
+  it('for random histories split at random points', () => {
+    let seed = 42;
+    const rand = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2 ** 31;
+      return seed % n;
+    };
+    for (let run = 0; run < 150; run++) {
+      nextId = 1;
+      const rows: TransactionRow[] = [];
+      const originals: TransactionRow[] = [];
+      const count = 1 + rand(60);
+      for (let k = 0; k < count; k++) {
+        const pick = rand(10);
+        if (pick < 3 && originals.length) {
+          const o = originals[rand(originals.length)];
+          rows.push(row({
+            type: 'correction', corrects_id: o.id, account_id: o.to_account_id != null ? 3 : 1 + rand(2),
+            amount_paise: rand(4) === 0 ? 0 : 1 + rand(5_000), created_at: 1_000_000,
+            to_account_id: o.to_account_id != null ? 1 : null, category_id: o.type === 'transfer' ? null : 1,
+          }));
+        } else {
+          const type = (['expense', 'income', 'transfer'] as const)[rand(3)];
+          const o = row({
+            type, amount_paise: 1 + rand(5_000), account_id: 1 + rand(2),
+            created_at: rand(3) === 0 ? rand(1_000) : 1_000 + k * 10, // imports can be back-dated
+            category_id: type === 'transfer' ? null : 1,
+            ...(type === 'transfer'
+              ? rand(2) ? { to_account_id: 3 } : { debt_id: 1 + rand(3), direction: rand(2) ? 'in' as const : 'out' as const }
+              : {}),
+          });
+          rows.push(o);
+          originals.push(o);
+        }
+      }
+      const cut = rand(rows.length + 1);
+      const incremental = extendLedger(extendLedger(indexLedger(rows.slice(0, cut)), rows.slice(cut, cut + 3)), rows.slice(cut + 3));
+      expect(incremental.list).toEqual(resolveTransactions(rows));
+    }
   });
 });

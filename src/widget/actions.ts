@@ -31,6 +31,9 @@ export interface WidgetState {
   last_saved: { id: number; label: string } | null;
 }
 
+/** Shown if the data can't be read for any reason; + and tapping still open the app. */
+export const EMPTY_WIDGET_STATE: WidgetState = { safe_per_day_paise: 0, has_money: false, picks: [], last_saved: null };
+
 interface LastSaved {
   id: number;
   label: string;

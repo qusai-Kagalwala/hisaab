@@ -194,20 +194,33 @@ const MIGRATIONS: readonly ((db: Db) => Promise<void>)[] = [
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS.length;
 
-/** Bring the database up to date. Safe to call on every app start. */
+/**
+ * Bring the database up to date. Safe to call on every app start — and
+ * safe when the app and the home-screen widget open the database at the
+ * same moment: each step takes the write lock first (waiting up to 5 s),
+ * then re-reads the version, so a step is never run twice.
+ */
 export async function migrate(db: Db, targetVersion = LATEST_SCHEMA_VERSION): Promise<void> {
-  await db.execAsync('PRAGMA foreign_keys = ON;');
-  const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-  let version = row?.user_version ?? 0;
+  await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+  const readVersion = async () =>
+    (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version ?? 0;
+  let version = await readVersion();
   if (version > LATEST_SCHEMA_VERSION) {
     throw new Error(`Database version ${version} is newer than this app (${LATEST_SCHEMA_VERSION})`);
   }
   while (version < targetVersion) {
-    const next = version + 1;
-    await db.withTransactionAsync(async () => {
-      await MIGRATIONS[version](db);
-      await db.execAsync(`PRAGMA user_version = ${next}`);
-    });
-    version = next;
+    await db.execAsync('BEGIN IMMEDIATE');
+    try {
+      version = await readVersion(); // another connection may have just upgraded
+      if (version < targetVersion) {
+        await MIGRATIONS[version](db);
+        version += 1;
+        await db.execAsync(`PRAGMA user_version = ${version}`);
+      }
+      await db.execAsync('COMMIT');
+    } catch (e) {
+      await db.execAsync('ROLLBACK').catch(() => undefined);
+      throw e;
+    }
   }
 }

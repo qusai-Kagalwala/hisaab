@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '../../components/Icon';
+import { BackupCard } from '../../components/BackupCard';
 import { OverspendCard } from '../../components/OverspendCard';
 import { InsightCard } from '../../components/InsightCard';
 import { PendingCard } from '../../components/PendingCard';
@@ -86,6 +87,8 @@ export function HomeScreen() {
       ))}
 
       <OverspendCard />
+
+      <BackupCard />
 
       {insights.map((i) => (
         <InsightCard key={i.id} insight={i} />

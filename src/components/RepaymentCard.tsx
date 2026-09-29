@@ -7,6 +7,7 @@ import { formatINR } from '../engine/money';
 import { useLedgerStore } from '../store/ledgerStore';
 import { useUndoStore } from '../store/undoStore';
 import { shortDate } from '../utils/dates';
+import { savedTap } from '../utils/haptics';
 import { usePalette } from './theme';
 import { Button, Card } from './ui';
 
@@ -28,6 +29,7 @@ export function RepaymentCard({ debt }: { debt: DebtStatus }) {
     try {
       const amount = debt.due_now_paise;
       const id = await settleDebt(db, debt, amount, lastAccountId);
+      savedTap();
       showUndo(`Repaid ${formatINR(amount)} to ${debt.person}`, async () => {
         await undoNew(db, id);
       });

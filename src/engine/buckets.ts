@@ -100,6 +100,12 @@ export function computeMoneyPicture(input: {
   };
 }
 
+/** Σ remaining + bills + repayments + goals + unallocated == account totals (dev self-check). */
+export function moneyAddsUp(p: MoneyPicture): boolean {
+  const remaining = p.buckets.reduce((sum, b) => sum + b.remaining_paise, 0);
+  return remaining + p.reserved_paise + p.repayments_paise + p.goals_paise + p.unallocated_paise === p.total_paise;
+}
+
 export interface SafeToSpend {
   /** Rounded down, never negative. */
   per_day_paise: Paise;

@@ -105,7 +105,7 @@ function Detail({ debt }: { debt: DebtStatus }) {
       <Stack.Screen options={{ title: debt.person }} />
       <Card>
         <Text style={{ color: p.textMuted }}>{headline}</Text>
-        {!debt.settled && <Text style={[styles.big, { color: p.text }]}>{formatINR(debt.outstanding_paise)}</Text>}
+        {!debt.settled && <Text style={[styles.big, { color: p.text }]} numberOfLines={1} adjustsFontSizeToFit>{formatINR(debt.outstanding_paise)}</Text>}
         <ProgressBar fraction={debt.principal_paise > 0 ? debt.settled_paise / debt.principal_paise : 0} />
         <Text style={{ color: p.textMuted, fontSize: 13 }}>
           {formatINR(debt.settled_paise)} of {formatINR(debt.principal_paise)} {borrowed ? 'repaid' : 'back'} · no interest

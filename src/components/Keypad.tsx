@@ -37,7 +37,7 @@ export function Keypad({ onKey, onClear }: Props) {
               {key === 'back' ? (
                 <Icon name="backspace-outline" size={26} color={p.text} />
               ) : (
-                <Text style={[styles.keyText, { color: p.text }]}>{key}</Text>
+                <Text maxFontSizeMultiplier={1.3} style={[styles.keyText, { color: p.text }]}>{key}</Text>
               )}
             </Pressable>
           ))}

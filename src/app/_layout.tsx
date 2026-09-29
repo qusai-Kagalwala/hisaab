@@ -1,9 +1,9 @@
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Animated, AppState, Easing, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, AppState, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePalette } from '../components/theme';
 import { UndoToast } from '../components/UndoToast';
@@ -15,6 +15,31 @@ import { useLedgerStore } from '../store/ledgerStore';
 // Keep the logo up until the ledger is loaded, then fade into the app.
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 SplashScreen.setOptions({ fade: true, duration: 250 });
+
+/**
+ * If any screen crashes, show a calm message instead of a blank page.
+ * Nothing is lost: every entry is already saved in the database.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const p = usePalette();
+  return (
+    <SafeAreaProvider>
+      <View style={[styles.center, { backgroundColor: p.background, gap: 12 }]}>
+        <Text style={{ color: p.text, fontSize: 18, fontWeight: '700', textAlign: 'center' }}>Something went wrong on this screen</Text>
+        <Text style={{ color: p.textMuted, textAlign: 'center' }}>
+          Your entries are safe — they were saved the moment you logged them. Tap Try again. If it keeps happening, close
+          Hisaab from your recent apps and open it again.
+        </Text>
+        <Text style={{ color: p.textMuted, fontSize: 12, textAlign: 'center' }} selectable>
+          {error.message}
+        </Text>
+        <Pressable onPress={retry} accessibilityRole="button" style={[styles.retry, { backgroundColor: p.accent }]}>
+          <Text style={{ color: p.accentText, fontWeight: '700' }}>Try again</Text>
+        </Pressable>
+      </View>
+    </SafeAreaProvider>
+  );
+}
 
 export default function RootLayout() {
   return (
@@ -54,7 +79,19 @@ function LedgerLoader({ children }: { children: ReactNode }) {
     return (
       <View style={[styles.center, { backgroundColor: p.background }]}>
         {error ? (
-          <Text style={{ color: p.text, textAlign: 'center' }}>Couldn&apos;t open your data: {error}</Text>
+          <>
+            <Text style={{ color: p.text, textAlign: 'center' }}>Couldn&apos;t open your data: {error}</Text>
+            <Pressable
+              onPress={() => {
+                setError(null);
+                load(db).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+              }}
+              accessibilityRole="button"
+              style={[styles.retry, { backgroundColor: p.accent, marginTop: 12 }]}
+            >
+              <Text style={{ color: p.accentText, fontWeight: '700' }}>Try again</Text>
+            </Pressable>
+          </>
         ) : (
           <ActivityIndicator color={p.accent} />
         )}
@@ -145,4 +182,5 @@ function AppStack() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  retry: { minHeight: 48, borderRadius: 14, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
 });

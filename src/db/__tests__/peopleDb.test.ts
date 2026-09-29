@@ -188,3 +188,24 @@ describe('removing accounts and backups', () => {
     expect(b.accounts.map((x) => x.id)).toEqual([BANK]);
   });
 });
+
+describe('migrate is safe to run from two places', () => {
+  it('a second run (e.g. the widget) after an upgrade changes nothing', async () => {
+    const db = createTestDb();
+    await migrate(db, 5);
+    await migrate(db);
+    await migrate(db);
+    const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    expect(version?.user_version).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  it('a failed step rolls back completely', async () => {
+    const db = createTestDb();
+    await migrate(db, 5);
+    await db.execAsync('ALTER TABLE accounts ADD COLUMN archived INTEGER'); // makes step 6 fail
+    await expect(migrate(db)).rejects.toThrow();
+    const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    expect(version?.user_version).toBe(5);
+    expect(await db.getFirstAsync("SELECT name FROM sqlite_master WHERE name = 'debts'")).toBeNull();
+  });
+});

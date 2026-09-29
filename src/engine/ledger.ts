@@ -21,6 +21,49 @@ function checkTransferShape(row: TransactionRow): void {
   }
 }
 
+function checkRow(row: TransactionRow): void {
+  assertPaise(row.amount_paise);
+  if (row.amount_paise < 0) {
+    throw new Error(`Transaction ${row.id} has a negative amount; sign comes from type`);
+  }
+  if (row.type === 'correction') {
+    if (row.corrects_id == null) throw new Error(`Correction ${row.id} does not reference a transaction`);
+  } else if (row.corrects_id != null) {
+    throw new Error(`Transaction ${row.id} is not a correction but has corrects_id`);
+  }
+}
+
+/** The current view of `original` after its latest `correction` (if any). */
+function effectiveOf(original: TransactionRow, correction: TransactionRow | undefined): EffectiveTransaction {
+  const type = original.type as EffectiveTransaction['type'];
+  if (type === 'transfer') {
+    checkTransferShape(original);
+    if (correction) checkTransferShape({ ...correction, debt_id: original.debt_id, direction: original.direction });
+  }
+  const source = correction ?? original;
+  return {
+    id: original.id,
+    type,
+    account_id: source.account_id,
+    category_id: source.category_id,
+    bucket_id: source.bucket_id,
+    amount_paise: source.amount_paise,
+    note: source.note,
+    occurred_at: original.created_at,
+    corrected_by: correction ? correction.id : null,
+    voided: source.amount_paise === 0,
+    // Who the money moved with never changes; the destination account can.
+    to_account_id: type === 'transfer' ? source.to_account_id ?? null : null,
+    debt_id: type === 'transfer' ? original.debt_id ?? null : null,
+    direction: type === 'transfer' ? original.direction ?? null : null,
+  };
+}
+
+/** Newest first; ties by id. */
+function byNewest(a: EffectiveTransaction, b: EffectiveTransaction): number {
+  return b.occurred_at - a.occurred_at || b.id - a.id;
+}
+
 /**
  * Collapse raw rows into effective transactions. The latest correction
  * (highest id) for each original wins. Voided entries are included with
@@ -31,62 +74,76 @@ export function resolveTransactions(rows: readonly TransactionRow[]): EffectiveT
   const latestCorrection = new Map<number, TransactionRow>();
 
   for (const row of rows) {
-    assertPaise(row.amount_paise);
-    if (row.amount_paise < 0) {
-      throw new Error(`Transaction ${row.id} has a negative amount; sign comes from type`);
-    }
+    checkRow(row);
     if (row.type === 'correction') {
-      if (row.corrects_id == null) {
-        throw new Error(`Correction ${row.id} does not reference a transaction`);
-      }
-      const current = latestCorrection.get(row.corrects_id);
-      if (!current || row.id > current.id) latestCorrection.set(row.corrects_id, row);
+      const current = latestCorrection.get(row.corrects_id!);
+      if (!current || row.id > current.id) latestCorrection.set(row.corrects_id!, row);
     } else {
-      if (row.corrects_id != null) {
-        throw new Error(`Transaction ${row.id} is not a correction but has corrects_id`);
-      }
       originals.set(row.id, row);
     }
   }
 
   for (const [originalId, correction] of latestCorrection) {
-    const original = originals.get(originalId);
-    if (!original) {
+    if (!originals.has(originalId)) {
       throw new Error(`Correction ${correction.id} references missing transaction ${originalId}`);
     }
-    if (original.type === 'transfer') {
-      checkTransferShape({ ...correction, debt_id: original.debt_id, direction: original.direction });
-    }
-  }
-  for (const original of originals.values()) {
-    if (original.type === 'transfer') checkTransferShape(original);
   }
 
   const result: EffectiveTransaction[] = [];
-  for (const original of originals.values()) {
-    const type = original.type as EffectiveTransaction['type'];
-    const correction = latestCorrection.get(original.id);
-    const source = correction ?? original;
-    result.push({
-      id: original.id,
-      type,
-      account_id: source.account_id,
-      category_id: source.category_id,
-      bucket_id: source.bucket_id,
-      amount_paise: source.amount_paise,
-      note: source.note,
-      occurred_at: original.created_at,
-      corrected_by: correction ? correction.id : null,
-      voided: source.amount_paise === 0,
-      // Who the money moved with never changes; the destination account can.
-      to_account_id: type === 'transfer' ? source.to_account_id ?? null : null,
-      debt_id: type === 'transfer' ? original.debt_id ?? null : null,
-      direction: type === 'transfer' ? original.direction ?? null : null,
-    });
-  }
-
-  result.sort((a, b) => b.occurred_at - a.occurred_at || b.id - a.id);
+  for (const original of originals.values()) result.push(effectiveOf(original, latestCorrection.get(original.id)));
+  result.sort(byNewest);
   return result;
+}
+
+/**
+ * A resolved ledger that can grow cheaply. Rows are append-only, so after a
+ * save only the new rows need work (see extendLedger). Same result as
+ * resolveTransactions over all rows — tested.
+ */
+export interface LedgerIndex {
+  /** Newest first, like resolveTransactions. */
+  list: EffectiveTransaction[];
+  originals: Map<number, TransactionRow>;
+  corrections: Map<number, TransactionRow>;
+}
+
+export function indexLedger(rows: readonly TransactionRow[]): LedgerIndex {
+  const index: LedgerIndex = { list: [], originals: new Map(), corrections: new Map() };
+  return extendLedger(index, rows);
+}
+
+/** Add rows with ids above every row already indexed. Returns a new index; `prev` is not changed. */
+export function extendLedger(prev: LedgerIndex, newRows: readonly TransactionRow[]): LedgerIndex {
+  if (newRows.length === 0) return prev;
+  const originals = new Map(prev.originals);
+  const corrections = new Map(prev.corrections);
+  const touched = new Set<number>();
+  const added: number[] = [];
+  for (const row of [...newRows].sort((a, b) => a.id - b.id)) {
+    checkRow(row);
+    if (row.type === 'correction') {
+      const current = corrections.get(row.corrects_id!);
+      if (!current || row.id > current.id) corrections.set(row.corrects_id!, row);
+      touched.add(row.corrects_id!);
+    } else {
+      originals.set(row.id, row);
+      added.push(row.id);
+    }
+  }
+  for (const id of touched) {
+    if (!originals.has(id)) throw new Error(`Correction ${corrections.get(id)!.id} references missing transaction ${id}`);
+  }
+  const list = prev.list.map((t) => (touched.has(t.id) ? effectiveOf(originals.get(t.id)!, corrections.get(t.id)) : t));
+  const fresh = added.map((id) => effectiveOf(originals.get(id)!, corrections.get(id))).sort(byNewest);
+  // Merge the new entries (usually "now", so at the front) into the sorted list.
+  const merged: EffectiveTransaction[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < list.length || j < fresh.length) {
+    if (j >= fresh.length || (i < list.length && byNewest(list[i], fresh[j]) <= 0)) merged.push(list[i++]);
+    else merged.push(fresh[j++]);
+  }
+  return { list: merged, originals, corrections };
 }
 
 /**
@@ -125,13 +182,19 @@ export function computeBalances(
   accountIds: readonly number[],
   transactions: readonly EffectiveTransaction[],
 ): Map<number, Paise> {
+  // Plain integer sums (every amount is already checked paise), checked once at the end.
   const balances = new Map<number, Paise>();
   for (const id of accountIds) balances.set(id, 0);
   for (const tx of transactions) {
-    for (const [accountId, delta] of balanceEffects(tx)) {
-      balances.set(accountId, addPaise(balances.get(accountId) ?? 0, delta));
+    if (tx.voided) continue;
+    if (tx.type === 'transfer' && tx.to_account_id != null) {
+      balances.set(tx.account_id, (balances.get(tx.account_id) ?? 0) - tx.amount_paise);
+      balances.set(tx.to_account_id, (balances.get(tx.to_account_id) ?? 0) + tx.amount_paise);
+    } else {
+      balances.set(tx.account_id, (balances.get(tx.account_id) ?? 0) + signedAmount(tx));
     }
   }
+  for (const v of balances.values()) assertPaise(v, 'balance');
   return balances;
 }
 

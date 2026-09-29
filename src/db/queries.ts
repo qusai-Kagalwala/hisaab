@@ -205,6 +205,10 @@ export const SETTING_LAST_ACCOUNT = 'last_account_id';
 export const SETTING_ONBOARDING_DONE = 'onboarding_done';
 /** '1' after the user turned buckets off (stop suggesting them). */
 export const SETTING_BUCKETS_OFF = 'buckets_off';
+/** Epoch ms of the last backup export. */
+export const SETTING_LAST_BACKUP = 'last_backup_at';
+/** Epoch ms until which the backup reminder stays hidden. */
+export const SETTING_BACKUP_SNOOZE = 'backup_snooze_until';
 /** 'system' (default), 'light' or 'dark'. */
 export const SETTING_THEME = 'theme';
 /** 'keypad' (default) or 'text' — how the capture screen opens. */
