@@ -4,7 +4,7 @@ import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, AppState, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePalette } from '../components/theme';
 import { UndoToast } from '../components/UndoToast';
 import { migrate } from '../db/migrations';
@@ -139,6 +139,11 @@ function OpeningAnimation({ children }: { children: ReactNode }) {
 
 function AppStack() {
   const p = usePalette();
+  // Android draws its navigation (3 buttons or the gesture line) over the app's
+  // bottom edge; keep every screen's content above it. Screens that handle the
+  // edge themselves (tabs, chat, onboarding) opt out below.
+  const insets = useSafeAreaInsets();
+  const ownEdge = { contentStyle: { backgroundColor: p.background } };
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
       <StatusBar style="auto" />
@@ -147,11 +152,11 @@ function AppStack() {
           headerStyle: { backgroundColor: p.background },
           headerTintColor: p.text,
           headerShadowVisible: false,
-          contentStyle: { backgroundColor: p.background },
+          contentStyle: { backgroundColor: p.background, paddingBottom: insets.bottom },
           animation: 'fade_from_bottom',
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Hisaab' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Hisaab', ...ownEdge }} />
         <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
         <Stack.Screen name="edit/[id]" options={{ title: 'Edit', presentation: 'modal' }} />
         <Stack.Screen name="transfer" options={{ title: 'Move between accounts' }} />
@@ -169,11 +174,11 @@ function AppStack() {
         <Stack.Screen name="goals/index" options={{ title: 'Goals' }} />
         <Stack.Screen name="goals/[id]" options={{ title: 'Goal' }} />
         <Stack.Screen name="afford" options={{ title: 'Can I afford this?' }} />
-        <Stack.Screen name="chat" options={{ title: 'Ask Hisaab' }} />
+        <Stack.Screen name="chat" options={{ title: 'Ask Hisaab', ...ownEdge }} />
         <Stack.Screen name="ideas" options={{ title: 'Ideas' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings & backup' }} />
         <Stack.Screen name="about" options={{ title: 'How Hisaab works' }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false, ...ownEdge }} />
       </Stack>
       <UndoToast />
     </View>
