@@ -1,0 +1,49 @@
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+index 5650d1e..e3fe4c9 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+@@ -200,6 +200,13 @@ public class RNWidget {
+     }
+ 
+     private void registerClickTask(int id, ClickableView clickableView, RemoteViews widgetView, Integer button) {
++        // Opening the app must be an activity PendingIntent: starting an activity from the
++        // broadcast receiver (a "trampoline") is blocked on newer Android when the app isn't running.
++        PendingIntent openIntent = buildOpenActivityIntent(clickableView);
++        if (openIntent != null) {
++            widgetView.setOnClickPendingIntent(button, openIntent);
++            return;
++        }
+         Intent intent = new Intent(appContext.getPackageName() + ".WIDGET_CLICK");
+         intent.setComponent(new ComponentName(appContext, RNWidgetUtil.getWidgetProviderClassName(appContext, widgetName)));
+         intent.putExtra("widgetId", id);
+@@ -215,6 +222,30 @@ public class RNWidget {
+         widgetView.setOnClickPendingIntent(button, pendingIntent);
+     }
+ 
++    private PendingIntent buildOpenActivityIntent(ClickableView clickableView) {
++        String action = clickableView.getClickAction();
++        Intent activityIntent = null;
++        if ("OPEN_APP".equals(action)) {
++            activityIntent = appContext.getPackageManager().getLaunchIntentForPackage(appContext.getPackageName());
++        } else if ("OPEN_URI".equals(action)) {
++            ReadableMap data = clickableView.getClickActionData();
++            if (data != null && data.hasKey("uri")) {
++                activityIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(data.getString("uri")));
++                activityIntent.setPackage(appContext.getPackageName());
++            }
++        }
++        if (activityIntent == null) {
++            return null;
++        }
++        activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++        return PendingIntent.getActivity(
++            appContext,
++            activityIntent.filterHashCode(),
++            activityIntent,
++            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
++        );
++    }
++
+     private void addCollectionViews(int widgetId, RemoteViews remoteWidgetView, WidgetWithViews widgetWithViews) {
+         remoteWidgetView.removeAllViews(R.id.rn_widget_collection_container);
+ 

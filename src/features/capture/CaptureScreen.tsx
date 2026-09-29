@@ -136,6 +136,8 @@ export function CaptureScreen() {
       setText('');
       setHint(null);
       setGuessTime(Date.now());
+    } catch {
+      setHint("Couldn't save that — please try again");
     } finally {
       setSaving(false);
     }

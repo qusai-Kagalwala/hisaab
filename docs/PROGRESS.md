@@ -111,10 +111,13 @@ Notes:
 - [x] Feel: haptic tap on save; large-font caps; onboarding mentions borrow & lend
 - [x] Code: ledger store split by topic; GitHub Actions CI (tsc, lint, tests)
 - [ ] On-device automated tap tests (Maestro) — needs a phone/emulator; skipped for now
+- [x] Widget + opens the app even when it's closed (library patch: activity PendingIntent)
+- [x] Crash-proofing: lock-safe migrations, widget fallback render, root error screen, retry on load failure
 - Version 1.2.0 (versionCode 3)
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-29 — Owner report: widget + only worked with the app in the background → patched the widget library to open via an activity intent; hardened migrations/widget/error screens; 280 tests green — next: owner builds 1.2.0 and tests + with the app fully closed.
 - 2026-09-29 — Optimisation pass: ledger cache (~14× faster reload at 10k entries), image compression, optional R8 profile, backup reminder, haptics, store split, CI; 278 tests, tsc, lint green; browser run-through passed — next: owner tests APK 1.1.0, then builds 1.2.0.
 - 2026-09-29 — Phase 6: transfers, borrow & lend with no-interest plans, removable accounts, tab bar, History search/filters, month stats, CSV export/import, theme setting, new icon + splash + motion, arm64 APK; 274 tests, tsc, lint green; Android bundle + prebuild OK; browser run-through passed — next: owner builds APK 1.1.0.
 - 2026-09-28 — Phase 5: home-screen widget (tested logic + guarded native UI), in-app mic, onboarding, shared DB snapshot for app+widget, expo-system-ui, dev-build profile, INSTALL updates; quick tile skipped; 226 tests, tsc, lint green; Android+web bundles and prebuild OK — next: owner builds APK and tests widget/mic.
