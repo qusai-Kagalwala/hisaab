@@ -192,6 +192,7 @@ Complete each phase, run tests, update PROGRESS.md, then **stop for review**.
 3. **Smarts offline:** goals + what-if, heuristic parser & insights, Can-I-afford, offline chat intents.
 4. **AI:** Gemini service + fallback chain, Context Builder, Assistant chat, weekly summary, Ideas + offline fallback.
 5. **Polish:** Android widget, quick tile, onboarding, backup, final UX pass.
+6. **Best of the references (budget.io, Hisaabat):** transfers between accounts, borrow & lend with no-interest repayment plans, removable accounts, bottom tab bar, History search/filters, month browsing + month stats, CSV export, optional reviewed import, theme setting, new app icon, splash + light motion, smaller APK.
 
 ## 12. Quality
 - Unit tests: money math, parser, bucket reconciliation, rollover, goal ETA, safe-to-spend.

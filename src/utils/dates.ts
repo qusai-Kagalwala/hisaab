@@ -25,3 +25,9 @@ export function timeLabel(ms: number): string {
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${m} ${h < 12 ? 'am' : 'pm'}`;
 }
+
+/** "5 Oct 2026" */
+export function shortDate(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}

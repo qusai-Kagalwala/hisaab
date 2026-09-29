@@ -13,6 +13,7 @@ export const BACKUP_TABLES = [
   'accounts',
   'categories',
   'buckets',
+  'debts',
   'transactions',
   'recurring',
   'pending_recurring',
@@ -41,7 +42,11 @@ const MONEY_COLUMNS: Partial<Record<BackupTable, string[]>> = {
   recurring: ['amount_paise'],
   goals: ['target_paise'],
   goal_contributions: ['amount_paise'],
+  debts: ['per_month_paise'],
 };
+
+/** Money columns that may be empty. */
+const NULLABLE_MONEY = new Set(['debts.per_month_paise']);
 
 export interface BackupSummary {
   entries: number;
@@ -85,7 +90,9 @@ export function parseBackup(text: string, currentSchemaVersion: number): { backu
         if (v !== null && typeof v !== 'string' && typeof v !== 'number') throw new Error(`Backup table "${table}" is damaged.`);
       }
       for (const col of MONEY_COLUMNS[table] ?? []) {
-        if (!isPaise((row as Row)[col])) throw new Error(`Backup has a non-integer amount in "${table}".`);
+        const v = (row as Row)[col];
+        if (v == null && NULLABLE_MONEY.has(`${table}.${col}`)) continue;
+        if (!isPaise(v)) throw new Error(`Backup has a non-integer amount in "${table}".`);
       }
     }
   }

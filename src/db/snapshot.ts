@@ -12,6 +12,7 @@ import {
   type SafeToSpend,
 } from '../engine/buckets';
 import { monthKey, monthStartMs, shiftMonth, type MonthKey } from '../engine/calendar';
+import { debtStatus, repaymentsThisMonth, type DebtStatus } from '../engine/debts';
 import { goalStatus, setAsideForGoals, type GoalStatus } from '../engine/goals';
 import { computeInsights, everydayExpenses, spendingByCategory, type Insight } from '../engine/insights';
 import { computeBalances, resolveTransactions } from '../engine/ledger';
@@ -32,14 +33,21 @@ import {
   SETTING_LAST_ACCOUNT,
   SETTING_ONBOARDING_DONE,
   SETTING_ROLLOVER_PREFIX,
+  SETTING_THEME,
 } from './queries';
+import { listDebts } from './peopleQueries';
 import { listContributions, listGoals, listMerchantMemory, listRecurringTransactionIds } from './smartQueries';
 import type { Db } from './types';
+
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export interface Snapshot {
   now: number;
   month: MonthKey;
+  /** Accounts in use (removed ones left out) — for pickers and totals lists. */
   accounts: Account[];
+  /** Every account, removed ones included — for naming old entries. */
+  allAccounts: Account[];
   categories: Category[];
   transactions: EffectiveTransaction[];
   balances: Map<number, Paise>;
@@ -50,6 +58,9 @@ export interface Snapshot {
   rememberedRollover: Map<string, string>;
   bucketsOff: boolean;
   goals: GoalStatus[];
+  /** Borrow & lend, with what's owed and what's due (all of them, incl. settled). */
+  debts: DebtStatus[];
+  theme: ThemeMode;
   merchantMemory: MerchantMemory[];
   recurringTxIds: Set<number>;
   captureMode: 'keypad' | 'text';
@@ -66,15 +77,17 @@ export interface Snapshot {
 }
 
 export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
-  const [goalsRaw, contributions, merchantMemory, recurringTxIds, modeRaw, onboardedRaw] = await Promise.all([
+  const [goalsRaw, contributions, merchantMemory, recurringTxIds, modeRaw, onboardedRaw, debtsRaw, themeRaw] = await Promise.all([
     listGoals(db),
     listContributions(db),
     listMerchantMemory(db),
     listRecurringTransactionIds(db),
     getSetting(db, SETTING_CAPTURE_MODE),
     getSetting(db, SETTING_ONBOARDING_DONE),
+    listDebts(db),
+    getSetting(db, SETTING_THEME),
   ]);
-  const [accounts, categories, rows, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
+  const [allAccounts, categories, rows, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
     listAccounts(db),
     listCategories(db),
     listTransactionRows(db),
@@ -88,19 +101,25 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
   const goals = goalsRaw.map((g) => goalStatus(g, contributions, now));
   const goalsPaise = setAsideForGoals(goals);
   const transactions = resolveTransactions(rows);
-  const balances = computeBalances(accounts.map((a) => a.id), transactions);
+  const balances = computeBalances(allAccounts.map((a) => a.id), transactions);
+  const accounts = allAccounts.filter((a) => !a.archived);
+  const debts = debtsRaw.map((d) => debtStatus(d, transactions, now));
+  const repayments = repaymentsThisMonth(debts);
   const last = lastRaw == null ? null : Number(lastRaw);
   const lastAccountId = accounts.some((a) => a.id === last) ? last : accounts[0]?.id ?? null;
   const month = monthKey(now);
   const reserved = reservedThisMonth(recurring, pending, now);
   const pictureFor = (buckets: Bucket[]) =>
-    computeMoneyPicture({ balances, buckets, transactions, reserved_paise: reserved, goals_paise: goalsPaise });
+    computeMoneyPicture({
+      balances, buckets, transactions, reserved_paise: reserved, repayments_paise: repayments, goals_paise: goalsPaise,
+    });
   const picture = pictureFor(activeBuckets(allBuckets, month));
 
   return {
     now,
     month,
     accounts,
+    allAccounts,
     categories,
     transactions,
     balances,
@@ -111,10 +130,13 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     rememberedRollover: remembered,
     bucketsOff: offRaw === '1',
     goals,
+    debts,
+    theme: themeRaw === 'light' || themeRaw === 'dark' ? themeRaw : 'system',
     merchantMemory,
     recurringTxIds,
     captureMode: modeRaw === 'text' ? 'text' : 'keypad',
-    needsOnboarding: onboardedRaw !== '1' && rows.length === 0 && recurring.length === 0 && allBuckets.length === 0,
+    needsOnboarding:
+      onboardedRaw !== '1' && rows.length === 0 && recurring.length === 0 && allBuckets.length === 0 && debtsRaw.length === 0,
     picture,
     safe: safeToSpend(picture, now),
     insights: computeInsights({ transactions, excludedIds: recurringTxIds, categories, buckets: picture.buckets, nowMs: now }),

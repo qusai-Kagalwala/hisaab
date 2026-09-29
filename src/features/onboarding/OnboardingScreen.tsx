@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '../../components/Icon';
+import { Logo } from '../../components/Logo';
 import { usePalette } from '../../components/theme';
 import { Button, Card, Chip, MoneyField } from '../../components/ui';
 import { setSetting, SETTING_BUCKETS_OFF } from '../../db/queries';
@@ -158,9 +159,7 @@ export function OnboardingScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {step === 'welcome' && (
           <View style={styles.welcome}>
-            <View style={[styles.logo, { backgroundColor: p.accent }]}>
-              <Text style={[styles.logoText, { color: p.accentText }]}>₹</Text>
-            </View>
+            <Logo size={88} />
             <Text style={[styles.brand, { color: p.text }]}>Hisaab</Text>
             <Text style={{ color: p.textMuted, fontSize: 16 }}>Log it as fast as you pay it.</Text>
             <View style={styles.points}>
@@ -280,8 +279,6 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8, minHeight: 40 },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   welcome: { alignItems: 'center', gap: 12, paddingTop: 24 },
-  logo: { width: 84, height: 84, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  logoText: { fontSize: 48, fontWeight: '800' },
   brand: { fontSize: 30, fontWeight: '800' },
   points: { alignSelf: 'stretch', gap: 14, marginVertical: 20 },
   point: { flexDirection: 'row', alignItems: 'center', gap: 12 },

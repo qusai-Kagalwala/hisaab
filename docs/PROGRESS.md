@@ -4,7 +4,7 @@ Claude updates this file at the end of every phase.
 Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Current phase
-Phase 5 — Widget & polish ✅ (awaiting owner review on the APK) · all planned phases built
+Phase 6 — Best of budget.io + Hisaabat ✅ (awaiting owner review on the APK)
 
 ## Phase 1 — Foundation ✅
 - [x] Expo + TypeScript project setup, lint, Jest
@@ -87,8 +87,26 @@ Notes:
 - Not verifiable here: native compile/run of the widget and mic (no Android SDK in this environment). `expo prebuild` was run in a scratch copy and generated the widget receiver, font, preview and mic permission correctly.
 - Entry is now `index.ts` (registers the widget task, then `expo-router/entry`).
 
+## Phase 6 — Best of the references ✅
+- [x] Move money between accounts (Bank → Cash): not spending, totals unchanged; editable/deletable like any entry
+- [x] Borrow & lend: I borrowed / I lent, per-person totals, partial repayments, settled list
+- [x] Repayment plans for borrowed money: by months or amount per month, full breakdown, no interest; this month's instalment kept aside; "₹X due to Rahul — paid?" card (never automatic); change plan later
+- [x] Remove any account (incl. Cash): move its money or set to ₹0; bills move along; bring back later
+- [x] Bottom tab bar: Home · History · + · Insights · More (app still opens on +)
+- [x] History: search (notes, categories, accounts, people), type and account filters, recurring mark, clear labels for moves and borrow/lend
+- [x] Insights: month browsing, money in/out, % saved, average a day, biggest days, largest spend; CSV download
+- [x] Optional import (paste or CSV, incl. budget.io export) with review, duplicate detection and undo; optional AI help for unread lines only
+- [x] Theme: Same as phone / Light / Dark
+- [x] New app icon (khata + ₹), branded splash, gentle opening animation, animated undo toast, tab fade
+- [x] Smaller APK: preview build is arm64-only; version 1.1.0 (versionCode 2)
+
+Notes:
+- Migration 6 adds columns/table only; tested upgrading a Phase 5 database with corrections (balances unchanged).
+- Not verifiable here: APK size and on-device look of the splash/icon (needs the EAS build).
+
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-29 — Phase 6: transfers, borrow & lend with no-interest plans, removable accounts, tab bar, History search/filters, month stats, CSV export/import, theme setting, new icon + splash + motion, arm64 APK; 274 tests, tsc, lint green; Android bundle + prebuild OK; browser run-through passed — next: owner builds APK 1.1.0.
 - 2026-09-28 — Phase 5: home-screen widget (tested logic + guarded native UI), in-app mic, onboarding, shared DB snapshot for app+widget, expo-system-ui, dev-build profile, INSTALL updates; quick tile skipped; 226 tests, tsc, lint green; Android+web bundles and prebuild OK — next: owner builds APK and tests widget/mic.
 - 2026-09-28 — Replaced all UI emojis with Material Community Icons (migration 5 for categories), new ₹-tick app logo and adaptive icons, friendlier no-balance Home state — next: Phase 5.
 - 2026-09-28 — Owner feedback: redesigned Ask Hisaab (chip row stretched the screen), Home now explains safe-to-spend step by step (engine `explainSafeToSpend`, always equals the number), new How-it-works page incl. where to add the AI key; 222 tests — next: Phase 5 after APK.

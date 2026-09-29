@@ -15,13 +15,16 @@ import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { dayLabel } from '../../utils/dates';
 import { pickBackupText, shareBackup } from './backupFiles';
+import { shareCsv } from './csvFiles';
 
 export function SettingsScreen() {
   const p = usePalette();
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ThemeSection />
       <AiSection />
       <BackupSection />
+      <SpreadsheetSection />
       <SectionTitle>About</SectionTitle>
       <Button label="How Hisaab works" variant="secondary" compact onPress={() => router.push('/about')} />
       <Text style={{ color: p.textMuted, lineHeight: 20 }}>
@@ -29,6 +32,59 @@ export function SettingsScreen() {
         switched off.
       </Text>
     </ScrollView>
+  );
+}
+
+function ThemeSection() {
+  const db = useSQLiteContext();
+  const theme = useLedgerStore((s) => s.theme);
+  const setTheme = useLedgerStore((s) => s.setTheme);
+  const options = [
+    { id: 'system', label: 'Same as phone', icon: 'cellphone' },
+    { id: 'light', label: 'Light', icon: 'white-balance-sunny' },
+    { id: 'dark', label: 'Dark', icon: 'weather-night' },
+  ] as const;
+  return (
+    <>
+      <SectionTitle>Look</SectionTitle>
+      <View style={styles.chips}>
+        {options.map((o) => (
+          <Chip key={o.id} label={o.label} icon={o.icon} selected={theme === o.id} onPress={() => setTheme(db, o.id)} />
+        ))}
+      </View>
+    </>
+  );
+}
+
+function SpreadsheetSection() {
+  const p = usePalette();
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <>
+      <SectionTitle>Spreadsheet</SectionTitle>
+      <Card>
+        <Text style={{ color: p.textMuted, fontSize: 13 }}>
+          Get all your entries as a .csv file for Excel or Google Sheets. Or bring entries in from a file or pasted
+          text — you review everything before it&apos;s saved.
+        </Text>
+        <View style={styles.row}>
+          <Button
+            label="Download CSV"
+            icon="file-delimited-outline"
+            compact
+            onPress={async () => {
+              try {
+                setMessage(`Saved ${await shareCsv()}`);
+              } catch (e) {
+                setMessage(e instanceof Error ? e.message : "Couldn't export.");
+              }
+            }}
+          />
+          <Button label="Import entries" icon="tray-arrow-down" variant="secondary" compact onPress={() => router.push('/import')} />
+        </View>
+        {message && <Text style={{ color: p.text }}>{message}</Text>}
+      </Card>
+    </>
   );
 }
 

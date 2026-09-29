@@ -1,4 +1,5 @@
 import { useColorScheme } from 'react-native';
+import { useThemeStore } from '../store/themeStore';
 
 export interface Palette {
   background: string;
@@ -56,8 +57,14 @@ const dark: Palette = {
   grid: '#2C2C29',
 };
 
+export function useIsDark(): boolean {
+  const mode = useThemeStore((s) => s.mode);
+  const system = useColorScheme();
+  return mode === 'system' ? system === 'dark' : mode === 'dark';
+}
+
 export function usePalette(): Palette {
-  return useColorScheme() === 'dark' ? dark : light;
+  return useIsDark() ? dark : light;
 }
 
 export const MIN_TAP = 48;

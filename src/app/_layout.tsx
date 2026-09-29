@@ -1,8 +1,9 @@
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, AppState, Easing, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePalette } from '../components/theme';
 import { UndoToast } from '../components/UndoToast';
@@ -11,6 +12,9 @@ import { DATABASE_NAME } from '../db/name';
 import { useAiStore } from '../store/aiStore';
 import { useLedgerStore } from '../store/ledgerStore';
 
+// Keep the logo up until the ledger is loaded, then fade into the app.
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+SplashScreen.setOptions({ fade: true, duration: 250 });
 
 export default function RootLayout() {
   return (
@@ -33,7 +37,10 @@ function LedgerLoader({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    load(db).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+    load(db).catch((e: unknown) => {
+      setError(e instanceof Error ? e.message : String(e));
+      SplashScreen.hideAsync().catch(() => undefined);
+    });
     loadAi(db).catch(() => undefined);
     // Coming back to the app may be a new day or month: due bills, rollover,
     // safe-to-spend all depend on the date.
@@ -54,7 +61,43 @@ function LedgerLoader({ children }: { children: ReactNode }) {
       </View>
     );
   }
-  return <>{children}</>;
+  return <OpeningAnimation>{children}</OpeningAnimation>;
+}
+
+/** A short, calm entrance: fade in and settle up a few pixels. Skipped with Reduce motion. */
+function OpeningAnimation({ children }: { children: ReactNode }) {
+  const [progress] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => undefined);
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .catch(() => false)
+      .then((reduce) => {
+        if (cancelled) return;
+        if (reduce) progress.setValue(1);
+        else Animated.timing(progress, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      });
+    // Never leave the app invisible if the animation can't run for any reason.
+    const safety = setTimeout(() => progress.setValue(1), 900);
+    return () => {
+      cancelled = true;
+      clearTimeout(safety);
+    };
+  }, [progress]);
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        opacity: progress,
+        transform: [
+          { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+          { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.985, 1] }) },
+        ],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
 }
 
 function AppStack() {
@@ -68,13 +111,17 @@ function AppStack() {
           headerTintColor: p.text,
           headerShadowVisible: false,
           contentStyle: { backgroundColor: p.background },
+          animation: 'fade_from_bottom',
         }}
       >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="history" options={{ title: 'History' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Hisaab' }} />
         <Stack.Screen name="accounts" options={{ title: 'Accounts' }} />
         <Stack.Screen name="edit/[id]" options={{ title: 'Edit', presentation: 'modal' }} />
-        <Stack.Screen name="home" options={{ title: 'Home' }} />
+        <Stack.Screen name="transfer" options={{ title: 'Move between accounts' }} />
+        <Stack.Screen name="people/index" options={{ title: 'Borrow & lend' }} />
+        <Stack.Screen name="people/new" options={{ title: 'Borrowed or lent' }} />
+        <Stack.Screen name="people/[id]" options={{ title: 'Details' }} />
+        <Stack.Screen name="import" options={{ title: 'Import entries' }} />
         <Stack.Screen name="buckets/index" options={{ title: 'Buckets' }} />
         <Stack.Screen name="buckets/plan" options={{ title: 'Plan your month' }} />
         <Stack.Screen name="buckets/move" options={{ title: 'Move money' }} />
@@ -86,7 +133,6 @@ function AppStack() {
         <Stack.Screen name="goals/[id]" options={{ title: 'Goal' }} />
         <Stack.Screen name="afford" options={{ title: 'Can I afford this?' }} />
         <Stack.Screen name="chat" options={{ title: 'Ask Hisaab' }} />
-        <Stack.Screen name="insights" options={{ title: 'Insights' }} />
         <Stack.Screen name="ideas" options={{ title: 'Ideas' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings & backup' }} />
         <Stack.Screen name="about" options={{ title: 'How Hisaab works' }} />

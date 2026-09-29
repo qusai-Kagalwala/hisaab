@@ -65,6 +65,7 @@ export function CaptureScreen() {
   const [kind, setKind] = useState<CategoryKind>('expense');
   const [hint, setHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [moreWays, setMoreWays] = useState(false);
   // In-app mic (APK only); the keyboard's own mic works everywhere.
   const [canListen] = useState(voiceAvailable);
   const [listening, setListening] = useState<Listening | null>(null);
@@ -198,7 +199,7 @@ export function CaptureScreen() {
   const topBar = (
     <View style={styles.topBar}>
       <Pressable
-        onPress={() => router.push('/home')}
+        onPress={() => router.navigate('/home')}
         hitSlop={8}
         style={[styles.pill, { backgroundColor: p.accentSoft }]}
         accessibilityRole="button"
@@ -231,9 +232,40 @@ export function CaptureScreen() {
       ) : (
         <View />
       )}
-      <Pressable onPress={() => router.push('/history')} hitSlop={8} style={styles.navButton} accessibilityRole="button">
-        <Text style={[styles.navText, { color: p.textMuted }]}>History</Text>
+      <Pressable
+        onPress={() => setMoreWays((v) => !v)}
+        hitSlop={8}
+        style={[styles.navButton, moreWays && { backgroundColor: p.accentSoft }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: moreWays }}
+        accessibilityLabel="Move money, borrowed or lent"
+      >
+        <Icon name="swap-horizontal" size={24} color={moreWays ? p.accent : p.textMuted} />
       </Pressable>
+    </View>
+  );
+
+  // Less frequent entries, one tap away: they are not spending or income.
+  const moreRow = moreWays && (
+    <View style={styles.moreRow}>
+      {([
+        { label: 'Move money', icon: 'swap-horizontal', go: () => router.push('/transfer') },
+        { label: 'I borrowed', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'borrowed' } }) },
+        { label: 'I lent', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'lent' } }) },
+      ] as const).map((w) => (
+        <Pressable
+          key={w.label}
+          onPress={() => {
+            setMoreWays(false);
+            w.go();
+          }}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.moreChip, { borderColor: p.border, backgroundColor: pressed ? p.surfacePressed : p.surface }]}
+        >
+          <Icon name={w.icon} size={18} color={p.accent} />
+          <Text style={{ color: p.text, fontWeight: '600', fontSize: 13 }}>{w.label}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 
@@ -262,9 +294,10 @@ export function CaptureScreen() {
       accounts.find((a) => a.id === textAccountId)?.name,
     ].filter(Boolean).join(' · ');
     return (
-      <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {topBar}
+          {moreRow}
           <View style={styles.inputRow}>
           <TextInput
             value={text}
@@ -312,8 +345,9 @@ export function CaptureScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top']}>
       {topBar}
+      {moreRow}
       <Pressable
         style={styles.amountArea}
         onLongPress={onRepeat}
@@ -354,8 +388,9 @@ export function CaptureScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 12 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
-  navButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  navText: { fontSize: 15, fontWeight: '500' },
+  navButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  moreRow: { flexDirection: 'row', gap: 8, paddingBottom: 6 },
+  moreChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 12, minHeight: 44 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, borderRadius: 999, paddingHorizontal: 12 },
   pillLabel: { fontSize: 12, fontWeight: '600' },
   pillAmount: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },

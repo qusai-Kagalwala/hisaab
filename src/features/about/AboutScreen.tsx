@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Icon, type IconName } from '../../components/Icon';
+import { Logo } from '../../components/Logo';
 import { usePalette } from '../../components/theme';
 import { Button, Card } from '../../components/ui';
 
@@ -57,9 +58,10 @@ function sections(): Section[] {
       body: (
         <Steps
           items={[
-            'Home → Accounts → tap “Update” on Cash and on UPI / Bank, and type what you really have right now.',
-            'Home → Bills & income → add your salary or pocket money, and fixed bills like rent or recharge.',
-            'Log spends as they happen: type the amount on the keypad, tap a category. Done.',
+            'The bar at the bottom: Home, History, the big + (log a spend), Insights and More.',
+            'More → Accounts → tap “Update” on Cash and on UPI / Bank, and type what you really have right now.',
+            'More → Bills & income → add your salary or pocket money, and fixed bills like rent or recharge.',
+            'Log spends as they happen: tap +, type the amount on the keypad, tap a category. Done.',
             'Optional: set up Buckets to plan your month, and Goals for things you’re saving up for.',
             'Optional: add a free AI key for friendlier chat answers (see “Using AI” below).',
           ]}
@@ -87,7 +89,7 @@ function sections(): Section[] {
       body: (
         <>
           <P>It answers one question: how much can I spend today and still be fine for the rest of the month?</P>
-          <P>Money in your accounts{'\n'}− bills still due this month{'\n'}− money in goals{'\n'}− money still planned in buckets (except Flexible){'\n'}= free money for the rest of the month</P>
+          <P>Money in your accounts{'\n'}− bills still due this month{'\n'}− repayments of borrowed money due this month{'\n'}− money in goals{'\n'}− money still planned in buckets (except Flexible){'\n'}= free money for the rest of the month</P>
           <P>Then: free money ÷ days left in the month (today included) = safe to spend today.</P>
           <Tip>Example: ₹29,520 free and 3 days left (28, 29, 30 Sep) → ₹9,840 a day. Spend less today and tomorrow’s number goes up. Tap “How is this worked out?” on Home to see your own maths.</Tip>
         </>
@@ -102,6 +104,19 @@ function sections(): Section[] {
           <P>Add them once in Bills & income (monthly or weekly). On the due day Home shows “Expected ₹X — received?” or “paid?”.</P>
           <P>Tap Confirm, Edit amount (if it was different) or Skip. Hisaab never adds these by itself, so your numbers stay true even if salary comes late.</P>
           <P>Bills still to pay this month are kept aside, so “safe to spend” doesn’t count them as free.</P>
+        </>
+      ),
+    },
+    {
+      id: 'people',
+      icon: 'hand-coin-outline',
+      title: 'Moving money, borrowing and lending',
+      body: (
+        <>
+          <P>Took cash from the ATM? More → Move between accounts (or the two-arrows button at the top of the + screen): Bank → Cash. It isn’t spending, so your totals don’t change.</P>
+          <P>Borrowed from a friend? More → Borrow & lend → I borrowed. The money goes into your account, but it’s not income. Pick how many months (or how much per month) to pay it back — Hisaab shows the full breakdown, with no interest.</P>
+          <P>Each month’s payment is kept aside like a bill, so safe to spend doesn’t count it. On the day, Home asks “₹X due to Rahul — paid?”. Nothing is ever paid by itself: you tap Paid. Paying extra? The rest of the plan adjusts.</P>
+          <P>Lent someone money? “I lent” — it leaves your account without counting as spending, and you tick it off as they pay you back.</P>
         </>
       ),
     },
@@ -136,7 +151,8 @@ function sections(): Section[] {
       title: 'Insights, Ideas and “Can I afford it?”',
       body: (
         <>
-          <P>Insights: where your money went this month, day by day, and money in vs out for 6 months. Tap a bar or row for details.</P>
+          <P>Insights: pick any month with ‹ ›. See money in vs out, how much you kept (% saved), your biggest days, average per day, where the money went, and 6 months of in vs out. Tap a row to see its entries.</P>
+          <P>History: search anything (“swiggy”, “Rahul”), or filter by Spent, Money in, Moves, Borrow & lend, or an account. A small repeat mark means it came from a bill or salary reminder.</P>
           <P>Can I afford…?: type a price — see which bucket it comes from, and how today’s safe-to-spend changes. You decide.</P>
           <P>Ideas: things to do under an amount (free walks to café outings), grouped by price. All prices are approximate.</P>
         </>
@@ -154,7 +170,7 @@ function sections(): Section[] {
             items={[
               'On your phone or laptop, open aistudio.google.com and sign in with your Google account.',
               'Tap “Get API key” → “Create API key”, then copy it (a long code starting with “AIza…”).',
-              'In Hisaab: Home → Settings & backup → AI → paste the key in the box → “Check & save key”.',
+              'In Hisaab: More → Settings & backup → AI → paste the key in the box → “Check & save key”.',
               'Hisaab checks it with Google and picks models for you. “Use AI” turns on.',
             ]}
           />
@@ -170,6 +186,7 @@ function sections(): Section[] {
         <>
           <P>Everything lives only on this phone — there’s no account or cloud. Settings & backup → Export backup saves a file you can keep in Drive, email or WhatsApp.</P>
           <P>On a new phone (or the installed app): Settings & backup → Restore from file. You can undo a restore for 5 seconds.</P>
+          <P>Spreadsheet: Settings → Download CSV gives all entries for Excel or Google Sheets. More → Import entries brings entries in from pasted text or a CSV (the old budget.io export works) — you review every row first.</P>
           <Tip>Uninstalling the app deletes its data. Export a backup now and then.</Tip>
         </>
       ),
@@ -179,7 +196,7 @@ function sections(): Section[] {
       icon: 'shield-lock-outline',
       title: 'Privacy',
       body: (
-        <P>No login, no server, no bank or SMS access, no ads, no tracking. Hisaab only knows what you type. AI is off unless you add your own key.</P>
+        <P>No login, no server, no bank or SMS access, no ads, no tracking. Hisaab only knows what you type or choose to import. AI is off unless you add your own key.</P>
       ),
     },
   ];
@@ -194,7 +211,7 @@ export function AboutScreen({ initial }: { initial?: string }) {
   return (
     <ScrollView ref={scroll} style={{ backgroundColor: p.background }} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={[styles.logo, { color: p.accent }]}>₹</Text>
+        <Logo size={64} />
         <Text style={[styles.title, { color: p.text }]}>Hisaab</Text>
         <Text style={{ color: p.textMuted, textAlign: 'center' }}>Log it as fast as you pay it.</Text>
         <Text style={[styles.p, { color: p.textMuted, textAlign: 'center' }]}>
@@ -245,7 +262,6 @@ export function AboutScreen({ initial }: { initial?: string }) {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 10, paddingBottom: 40 },
   header: { alignItems: 'center', gap: 4, paddingVertical: 12 },
-  logo: { fontSize: 44, fontWeight: '800' },
   title: { fontSize: 24, fontWeight: '800' },
   card: { paddingVertical: 4 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48 },

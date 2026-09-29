@@ -6,6 +6,21 @@
 import { addPaise, assertPaise, subtractPaise, type Paise } from './money';
 import type { EffectiveTransaction, TransactionRow } from './types';
 
+/** A transfer row must say where the money went: another account, or a person. */
+function checkTransferShape(row: TransactionRow): void {
+  const toAccount = row.to_account_id ?? null;
+  const debt = row.debt_id ?? null;
+  const direction = row.direction ?? null;
+  const isAccountTransfer = toAccount != null && debt == null && direction == null;
+  const isDebtTransfer = toAccount == null && debt != null && (direction === 'in' || direction === 'out');
+  if (!isAccountTransfer && !isDebtTransfer) {
+    throw new Error(`Transfer ${row.id} needs either a destination account or a person`);
+  }
+  if (isAccountTransfer && toAccount === row.account_id) {
+    throw new Error(`Transfer ${row.id} goes to the same account`);
+  }
+}
+
 /**
  * Collapse raw rows into effective transactions. The latest correction
  * (highest id) for each original wins. Voided entries are included with
@@ -35,9 +50,16 @@ export function resolveTransactions(rows: readonly TransactionRow[]): EffectiveT
   }
 
   for (const [originalId, correction] of latestCorrection) {
-    if (!originals.has(originalId)) {
+    const original = originals.get(originalId);
+    if (!original) {
       throw new Error(`Correction ${correction.id} references missing transaction ${originalId}`);
     }
+    if (original.type === 'transfer') {
+      checkTransferShape({ ...correction, debt_id: original.debt_id, direction: original.direction });
+    }
+  }
+  for (const original of originals.values()) {
+    if (original.type === 'transfer') checkTransferShape(original);
   }
 
   const result: EffectiveTransaction[] = [];
@@ -56,6 +78,10 @@ export function resolveTransactions(rows: readonly TransactionRow[]): EffectiveT
       occurred_at: original.created_at,
       corrected_by: correction ? correction.id : null,
       voided: source.amount_paise === 0,
+      // Who the money moved with never changes; the destination account can.
+      to_account_id: type === 'transfer' ? source.to_account_id ?? null : null,
+      debt_id: type === 'transfer' ? original.debt_id ?? null : null,
+      direction: type === 'transfer' ? original.direction ?? null : null,
     });
   }
 
@@ -63,17 +89,35 @@ export function resolveTransactions(rows: readonly TransactionRow[]): EffectiveT
   return result;
 }
 
-/** Signed effect of one transaction on its account's balance. */
-export function signedAmount(tx: Pick<EffectiveTransaction, 'type' | 'amount_paise'>): Paise {
+/**
+ * Signed effect of one transaction on its own account's balance. A transfer
+ * between two accounts touches both — use balanceEffects() for those.
+ */
+export function signedAmount(
+  tx: Pick<EffectiveTransaction, 'type' | 'amount_paise' | 'direction' | 'to_account_id'>,
+): Paise {
   switch (tx.type) {
     case 'income':
       return tx.amount_paise;
     case 'expense':
       return -tx.amount_paise;
     case 'transfer':
-      // Transfers need a destination account, which arrives with the money model.
-      throw new Error('Transfers are not supported yet');
+      if (tx.direction === 'in') return tx.amount_paise;
+      if (tx.direction === 'out') return -tx.amount_paise;
+      throw new Error('A transfer between accounts changes two balances; use balanceEffects');
   }
+}
+
+/** Every balance change a transaction causes, as [account id, signed paise]. */
+export function balanceEffects(tx: EffectiveTransaction): [number, Paise][] {
+  if (tx.voided) return [];
+  if (tx.type === 'transfer' && tx.to_account_id != null) {
+    return [
+      [tx.account_id, -tx.amount_paise],
+      [tx.to_account_id, tx.amount_paise],
+    ];
+  }
+  return [[tx.account_id, signedAmount(tx)]];
 }
 
 /** Balance per account id. Accounts with no transactions get 0. */
@@ -84,9 +128,9 @@ export function computeBalances(
   const balances = new Map<number, Paise>();
   for (const id of accountIds) balances.set(id, 0);
   for (const tx of transactions) {
-    if (tx.voided) continue;
-    const current = balances.get(tx.account_id) ?? 0;
-    balances.set(tx.account_id, addPaise(current, signedAmount(tx)));
+    for (const [accountId, delta] of balanceEffects(tx)) {
+      balances.set(accountId, addPaise(balances.get(accountId) ?? 0, delta));
+    }
   }
   return balances;
 }
@@ -98,21 +142,41 @@ export interface CorrectionInput {
   note: string | null;
   /** Omit to keep the current bucket. */
   bucket_id?: number | null;
+  /** Transfers between accounts only. Omit to keep the current destination. */
+  to_account_id?: number | null;
+}
+
+export interface CorrectionRow {
+  corrects_id: number;
+  account_id: number;
+  category_id: number | null;
+  bucket_id: number | null;
+  amount_paise: Paise;
+  note: string | null;
+  to_account_id: number | null;
+  debt_id: number | null;
+  direction: EffectiveTransaction['direction'];
 }
 
 /**
  * Build the row values for a correction of `current`. Returns null when
  * nothing changed, so no pointless correction rows are written.
  */
-export function buildCorrection(
-  current: EffectiveTransaction,
-  next: CorrectionInput,
-): (Omit<CorrectionInput, 'bucket_id'> & { corrects_id: number; bucket_id: number | null }) | null {
+export function buildCorrection(current: EffectiveTransaction, next: CorrectionInput): CorrectionRow | null {
   assertPaise(next.amount_paise);
   if (next.amount_paise < 0) throw new Error('Amount cannot be negative');
   const note = next.note?.trim() ? next.note.trim() : null;
   const bucketId = next.bucket_id === undefined ? current.bucket_id : next.bucket_id;
+  const currentTo = current.to_account_id ?? null;
+  const toAccountId = next.to_account_id === undefined ? currentTo : next.to_account_id;
+  if (current.type === 'transfer' && currentTo != null) {
+    if (toAccountId == null) throw new Error('A transfer needs a destination account');
+    if (toAccountId === next.account_id) throw new Error('Pick two different accounts');
+  } else if (toAccountId != null) {
+    throw new Error('Only transfers between accounts have a destination account');
+  }
   const unchanged =
+    currentTo === toAccountId &&
     current.bucket_id === bucketId &&
     current.account_id === next.account_id &&
     current.category_id === next.category_id &&
@@ -126,6 +190,9 @@ export function buildCorrection(
     bucket_id: bucketId,
     amount_paise: next.amount_paise,
     note,
+    to_account_id: toAccountId,
+    debt_id: current.debt_id ?? null,
+    direction: current.direction ?? null,
   };
 }
 

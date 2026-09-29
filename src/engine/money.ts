@@ -36,11 +36,15 @@ export function addPaise(...values: Paise[]): Paise {
   return total;
 }
 
-export function subtractPaise(a: Paise, b: Paise): Paise {
+/** a − b − c − … */
+export function subtractPaise(a: Paise, ...rest: Paise[]): Paise {
   assertPaise(a);
-  assertPaise(b);
-  const result = a - b;
-  assertPaise(result, 'difference');
+  let result = a;
+  for (const b of rest) {
+    assertPaise(b);
+    result -= b;
+    assertPaise(result, 'difference');
+  }
   return result;
 }
 

@@ -1,13 +1,18 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Icon } from '../../components/Icon';
 import { OverspendCard } from '../../components/OverspendCard';
 import { InsightCard } from '../../components/InsightCard';
 import { PendingCard } from '../../components/PendingCard';
+import { RepaymentCard } from '../../components/RepaymentCard';
 import { SafeToSpendHero } from '../../components/SafeToSpendHero';
 import { WeeklyCard } from '../../components/WeeklyCard';
 import { usePalette } from '../../components/theme';
 import { Button, Card, ProgressBar, SectionTitle } from '../../components/ui';
 import { monthName } from '../../engine/calendar';
+import { monthStats } from '../../engine/charts';
+import { debtTotals, visibleDebts } from '../../engine/debts';
 import { formatINR } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { monthLabel } from '../goals/goalText';
@@ -23,6 +28,14 @@ export function HomeScreen() {
   const goals = useLedgerStore((s) => s.goals);
   const activeGoals = goals.filter((g) => g.status === 'active');
   const bucketsOff = useLedgerStore((s) => s.bucketsOff);
+  const debts = useLedgerStore((s) => s.debts);
+  const transactions = useLedgerStore((s) => s.transactions);
+  const excluded = useLedgerStore((s) => s.recurringTxIds);
+  const month = useLedgerStore((s) => s.month);
+  const [now] = useState(() => Date.now());
+  const dueDebts = useMemo(() => debts.filter((d) => d.kind === 'borrowed' && d.due_now_paise > 0), [debts]);
+  const people = useMemo(() => debtTotals(visibleDebts(debts)), [debts]);
+  const stats = useMemo(() => monthStats(transactions, month, now, excluded), [transactions, month, now, excluded]);
 
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content}>
@@ -38,8 +51,8 @@ export function HomeScreen() {
         <Button label="Ask Hisaab" icon="message-text-outline" variant="secondary" compact onPress={() => router.push('/chat')} style={styles.flex} />
       </View>
       <View style={styles.quickRow}>
-        <Button label="Insights" icon="chart-box-outline" variant="secondary" compact onPress={() => router.push('/insights')} style={styles.flex} />
-        <Button label="Ideas under ₹X" icon="lightbulb-on-outline" variant="secondary" compact onPress={() => router.push('/ideas')} style={styles.flex} />
+        <Button label="Borrow & lend" icon="hand-coin-outline" variant="secondary" compact onPress={() => router.push('/people')} style={styles.flex} />
+        <Button label="Move money" icon="swap-horizontal" variant="secondary" compact onPress={() => router.push('/transfer')} style={styles.flex} />
       </View>
 
       <WeeklyCard />
@@ -66,6 +79,10 @@ export function HomeScreen() {
 
       {pending.map((item) => (
         <PendingCard key={item.id} item={item} />
+      ))}
+
+      {dueDebts.map((d) => (
+        <RepaymentCard key={d.id} debt={d} />
       ))}
 
       <OverspendCard />
@@ -147,10 +164,26 @@ export function HomeScreen() {
         ))
       )}
 
+      {(people.you_owe_paise > 0 || people.owed_to_you_paise > 0) && (
+        <Pressable onPress={() => router.push('/people')} accessibilityRole="button">
+          <Card style={styles.peopleCard}>
+            <Icon name="hand-coin-outline" size={22} color={p.accent} />
+            <Text style={{ color: p.text, flex: 1 }}>
+              {[
+                people.you_owe_paise > 0 ? `You owe ${formatINR(people.you_owe_paise, { paise: 'never' })}` : null,
+                people.owed_to_you_paise > 0 ? `Owed to you ${formatINR(people.owed_to_you_paise, { paise: 'never' })}` : null,
+              ].filter(Boolean).join(' · ')}
+            </Text>
+            <Icon name="chevron-right" size={20} color={p.textMuted} />
+          </Card>
+        </Pressable>
+      )}
+
       <SectionTitle>This month</SectionTitle>
       <Card>
         <Row label="In your accounts" value={formatINR(picture.total_paise)} />
         <Row label="Kept for bills" value={formatINR(picture.reserved_paise)} />
+        {picture.repayments_paise > 0 && <Row label="Kept for repayments" value={formatINR(picture.repayments_paise)} />}
         {hasBuckets && <Row label="In buckets" value={formatINR(picture.in_buckets_paise)} />}
         {picture.goals_paise > 0 && <Row label="Set aside in goals" value={formatINR(picture.goals_paise)} />}
         <Row
@@ -159,17 +192,24 @@ export function HomeScreen() {
         />
       </Card>
 
-      <View style={styles.links}>
-        <Link href="/buckets" style={[styles.link, { color: p.accent }]}>Buckets</Link>
-        <Link href="/goals" style={[styles.link, { color: p.accent }]}>Goals</Link>
-        <Link href="/recurring" style={[styles.link, { color: p.accent }]}>Bills & income</Link>
-        <Link href="/accounts" style={[styles.link, { color: p.accent }]}>Accounts</Link>
-        <Link href="/settings" style={[styles.link, { color: p.accent }]}>Settings & backup</Link>
-        <Link href="/about" style={[styles.link, { color: p.accent }]}>How it works</Link>
-        <Link href="/history" style={[styles.link, { color: p.accent }]}>History</Link>
-      </View>
+      {stats.in_paise > 0 && (
+        <Pressable onPress={() => router.navigate('/insights')} accessibilityRole="button">
+          <Card style={styles.peopleCard}>
+            <Icon name="chart-box-outline" size={22} color={p.accent} />
+            <Text style={{ color: p.text, flex: 1 }}>
+              {stats.saved_paise >= 0
+                ? `So far you've kept ${stats.saved_percent}% of what came in this month`
+                : `This month ${formatINR(-stats.saved_paise, { paise: 'never' })} more went out than came in`}
+            </Text>
+            <Icon name="chevron-right" size={20} color={p.textMuted} />
+          </Card>
+        </Pressable>
+      )}
 
-      <Button label="＋ Add expense" onPress={() => router.dismissTo('/')} />
+      <View style={styles.links}>
+        <Button label="Accounts" icon="wallet-outline" variant="plain" compact onPress={() => router.push('/accounts')} />
+        <Button label="Bills & income" icon="calendar-sync" variant="plain" compact onPress={() => router.push('/recurring')} />
+      </View>
     </ScrollView>
   );
 }
@@ -194,6 +234,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   rowValue: { fontWeight: '600', fontVariant: ['tabular-nums'] },
-  links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingVertical: 8, gap: 8 },
-  link: { fontSize: 15, fontWeight: '600', paddingVertical: 10, paddingHorizontal: 6 },
+  links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  peopleCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

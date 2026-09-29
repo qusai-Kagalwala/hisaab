@@ -121,6 +121,9 @@ function balanceAnswer(ctx: ChatContext, lang: Lang): string {
   const parts = ctx.accounts.map((a) => `${a.name} ${fmt(a.balance_paise)}`).join(', ');
   const setAside: string[] = [];
   if (picture.reserved_paise > 0) setAside.push(lang === 'hi' ? `${fmt(picture.reserved_paise)} bills ke liye` : `${fmt(picture.reserved_paise)} kept for bills`);
+  if (picture.repayments_paise > 0) {
+    setAside.push(lang === 'hi' ? `${fmt(picture.repayments_paise)} udhaar chukane ke liye` : `${fmt(picture.repayments_paise)} kept to repay borrowed money`);
+  }
   if (picture.goals_paise > 0) setAside.push(lang === 'hi' ? `${fmt(picture.goals_paise)} goals mein` : `${fmt(picture.goals_paise)} in goals`);
   if (lang === 'hi') {
     return `Aapke paas total ${fmt(picture.total_paise)} hai (${parts}).` +

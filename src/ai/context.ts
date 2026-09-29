@@ -32,6 +32,7 @@ export function buildFacts(intent: Intent, question: string, ctx: ChatContext): 
     case 'balance':
       lines.push(`Total money in all accounts: ${fmt(picture.total_paise)}`);
       lines.push(`Kept aside for bills this month: ${fmt(picture.reserved_paise)}`);
+      if (picture.repayments_paise > 0) lines.push(`Kept aside to repay borrowed money this month: ${fmt(picture.repayments_paise)}`);
       lines.push(`Set aside in goals: ${fmt(picture.goals_paise)}`);
       if (picture.buckets.length) lines.push(`Planned in buckets (left): ${fmt(picture.in_buckets_paise)}`);
       lines.push(`Unallocated: ${fmt(picture.unallocated_paise)}`);
@@ -103,7 +104,22 @@ export const DATA_SENT_EXPLAINER = [
   'Your question, as you typed it.',
   'Only the totals that question needs, already calculated on your phone — for example "Food: ₹4,200 this month" or "Safe to spend today: ₹640".',
   'For Ideas: the budget amount, your city and the mood you picked.',
+  'For Import, only when you tap "Ask AI": just the pasted lines Hisaab could not read — nothing else.',
 ];
+
+export const IMPORT_AI_MAX_LINES = 30;
+
+/**
+ * Import help: the only text sent is the lines the user pasted that the
+ * offline reader couldn't understand — numbered, trimmed and capped.
+ */
+export function buildImportLines(lines: readonly string[]): string {
+  return lines
+    .slice(0, IMPORT_AI_MAX_LINES)
+    .map((l, i) => `${i + 1}. ${l.replace(/\s+/g, ' ').trim().slice(0, 120)}`)
+    .join('\n');
+}
+
 export const DATA_NEVER_SENT = [
   'Your list of entries, notes, account names or dates of single payments.',
   'Anything at all while AI is switched off.',

@@ -35,7 +35,9 @@ The first time, it asks a few questions. Answer:
 | Generate a new Android Keystore? | **Yes** (Expo stores it safely; it signs every future update) |
 
 Then Expo builds in the cloud. On the free plan this usually takes **10–30
-minutes** (there can be a queue). When it's done you get:
+minutes** (there can be a queue). The APK is built for 64-bit ARM phones only
+(every Android phone from roughly 2017 on), which keeps it about a third of the
+size of an "all phones" APK. When it's done you get:
 
 - a **link** and a **QR code** in the terminal, and
 - the build on **https://expo.dev** → your project → Builds.
@@ -71,9 +73,14 @@ The chips appear once you've logged the same thing a couple of times.
 ## 6. Updating the app later
 
 1. Get the new code (`git pull`, `npm install`).
-2. In `app.json`, raise `"version"` (e.g. `1.0.0` → `1.1.0`) **and** `android.versionCode` (`1` → `2`).
+2. In `app.json`, raise `"version"` (e.g. `1.1.0` → `1.2.0`) **and** `android.versionCode` (`2` → `3`).
+   (Already done for 1.1.0 / versionCode 2.)
 3. Build again with the same command and install the new APK **over** the old one.
-   Your data stays, because it's the same app signed with the same key.
+   Your data stays, because it's the same app signed with the same key. The
+   database upgrades itself on first open (e.g. 1.1.0 adds borrow & lend).
+
+> Very old 32-bit phone and the APK won't install? Remove the `env` block from
+> the `preview` profile in `eas.json` and build again (bigger, but runs everywhere).
 
 ⚠️ **Uninstalling the app deletes its data.** Export a backup first, and export
 one now and then anyway.

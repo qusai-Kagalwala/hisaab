@@ -1,8 +1,9 @@
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MIN_TAP, usePalette } from '../../components/theme';
-import { Button, MoneyField } from '../../components/ui';
+import { Button, Chip, MoneyField } from '../../components/ui';
 import { formatINR, inputToPaise, paiseToInput } from '../../engine/money';
 import type { Account, AccountType } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
@@ -18,8 +19,11 @@ export function AccountsScreen() {
   const db = useSQLiteContext();
   const p = usePalette();
   const accounts = useLedgerStore((s) => s.accounts);
+  const allAccounts = useLedgerStore((s) => s.allAccounts);
   const balances = useLedgerStore((s) => s.balances);
   const addAccount = useLedgerStore((s) => s.addAccount);
+  const restoreAccount = useLedgerStore((s) => s.restoreAccount);
+  const removed = allAccounts.filter((a) => a.archived);
 
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('other');
@@ -42,8 +46,11 @@ export function AccountsScreen() {
         name to rename it.
       </Text>
       {accounts.map((a) => (
-        <AccountRow key={a.id} account={a} balance={balances.get(a.id) ?? 0} />
+        <AccountRow key={a.id} account={a} balance={balances.get(a.id) ?? 0} canRemove={accounts.length > 1} />
       ))}
+      {accounts.length > 1 && (
+        <Button label="Move money between accounts" icon="swap-horizontal" variant="secondary" compact onPress={() => router.push('/transfer')} />
+      )}
 
       <Text style={[styles.sectionTitle, { color: p.text }]}>Add an account</Text>
       <TextInput
@@ -80,11 +87,24 @@ export function AccountsScreen() {
       >
         <Text style={[styles.primaryText, { color: p.accentText }]}>Add account</Text>
       </Pressable>
+
+      {removed.length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, { color: p.text }]}>Removed accounts</Text>
+          <Text style={[styles.caption, { color: p.textMuted }]}>Their old entries stay in History. Bring one back any time.</Text>
+          {removed.map((a) => (
+            <View key={a.id} style={[styles.card, styles.row, { backgroundColor: p.surface, borderColor: p.border }]}>
+              <Text style={[styles.rowName, { color: p.textMuted, flex: 1 }]}>{a.name}</Text>
+              <Button label="Bring back" icon="restore" variant="secondary" compact onPress={() => restoreAccount(db, a.id)} />
+            </View>
+          ))}
+        </>
+      )}
     </ScrollView>
   );
 }
 
-function AccountRow({ account, balance }: { account: Account; balance: number }) {
+function AccountRow({ account, balance, canRemove }: { account: Account; balance: number; canRemove: boolean }) {
   const db = useSQLiteContext();
   const p = usePalette();
   const renameAccount = useLedgerStore((s) => s.renameAccount);
@@ -95,6 +115,22 @@ function AccountRow({ account, balance }: { account: Account; balance: number })
   const [draft, setDraft] = useState(account.name);
   const [updating, setUpdating] = useState(false);
   const [actual, setActual] = useState('');
+  const [removing, setRemoving] = useState(false);
+  const accounts = useLedgerStore((s) => s.accounts);
+  const removeAccount = useLedgerStore((s) => s.removeAccount);
+  const others = accounts.filter((a) => a.id !== account.id);
+  // Where money still in this account goes: another account, or null = it's gone (set to ₹0).
+  const [moveTo, setMoveTo] = useState<number | null>(others[0]?.id ?? null);
+  const [error, setError] = useState<string | null>(null);
+
+  const onRemove = async () => {
+    try {
+      const undo = await removeAccount(db, account.id, balance === 0 ? null : moveTo);
+      showUndo(`Removed ${account.name}`, undo);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const onUpdateBalance = async () => {
     const id = await adjustBalance(db, account.id, inputToPaise(actual));
@@ -153,6 +189,37 @@ function AccountRow({ account, balance }: { account: Account; balance: number })
         <Button label="Set balance" compact onPress={onUpdateBalance} />
       </View>
     )}
+    {canRemove && !removing && !updating && (
+      <Pressable onPress={() => setRemoving(true)} accessibilityRole="button" hitSlop={6} style={styles.removeLink}>
+        <Text style={{ color: p.textMuted, fontSize: 13 }}>Remove account</Text>
+      </Pressable>
+    )}
+    {removing && (
+      <View style={styles.update}>
+        {balance === 0 ? (
+          <Text style={{ color: p.text }}>Remove {account.name}? Past entries stay in History, and you can bring it back later.</Text>
+        ) : (
+          <>
+            <Text style={{ color: p.text }}>
+              {balance > 0
+                ? `${account.name} still has ${formatINR(balance)}. Where should it go?`
+                : `${account.name} is at ${formatINR(balance)}. Settle it from:`}
+            </Text>
+            <View style={styles.typeRow}>
+              {others.map((o) => (
+                <Chip key={o.id} label={`Move to ${o.name}`} selected={moveTo === o.id} onPress={() => setMoveTo(o.id)} />
+              ))}
+              <Chip label={balance > 0 ? "It's gone — set to ₹0" : 'Just set it to ₹0'} selected={moveTo == null} onPress={() => setMoveTo(null)} />
+            </View>
+          </>
+        )}
+        {error && <Text style={{ color: p.text }}>{error}</Text>}
+        <View style={styles.typeRow}>
+          <Button label={`Remove ${account.name}`} icon="delete-outline" compact onPress={onRemove} />
+          <Button label="Keep it" variant="plain" compact onPress={() => setRemoving(false)} />
+        </View>
+      </View>
+    )}
     </View>
   );
 }
@@ -168,7 +235,8 @@ const styles = StyleSheet.create({
   rowInput: { borderBottomWidth: 1, paddingVertical: 2 },
   balance: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'] },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, minHeight: MIN_TAP, fontSize: 15 },
-  typeRow: { flexDirection: 'row', gap: 8 },
+  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  removeLink: { alignSelf: 'flex-start', paddingTop: 6 },
   typeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, borderWidth: 1 },
   primary: { minHeight: MIN_TAP + 4, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   primaryText: { fontSize: 16, fontWeight: '700' },
