@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Icon, type IconName } from '../../components/Icon';
 import { Logo } from '../../components/Logo';
+import { MadeBy } from '../../components/MadeBy';
 import { usePalette } from '../../components/theme';
 import { Button, Card } from '../../components/ui';
 
@@ -255,6 +256,8 @@ export function AboutScreen({ initial }: { initial?: string }) {
         <Button label="Open Settings & backup" variant="secondary" compact onPress={() => router.push('/settings')} />
         <Button label="Start logging" compact onPress={() => router.dismissTo('/')} />
       </View>
+
+      <MadeBy />
     </ScrollView>
   );
 }

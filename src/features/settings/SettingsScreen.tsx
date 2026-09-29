@@ -31,6 +31,7 @@ export function SettingsScreen() {
         Hisaab keeps everything on this phone. No login, no server, no bank or SMS access. The app works fully with AI
         switched off.
       </Text>
+      <Text style={{ color: p.textMuted, fontSize: 13 }}>Made by Qusai Kagalwala · Saifee Technologies</Text>
     </ScrollView>
   );
 }

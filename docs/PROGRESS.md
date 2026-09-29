@@ -117,6 +117,7 @@ Notes:
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-29 — Creator credit (Qusai Kagalwala · Saifee Technologies) on How-it-works, Settings and README; 1.2.5.
 - 2026-09-29 — Tab bar hidden under Android 3-button navigation → tab bar and screens respect the bottom inset; 1.2.4.
 - 2026-09-29 — Crash on consecutive deletes (react-native-screens header update on a closing screen) → titles set only on change, Edit screen frozen; 1.2.3 — next: owner rebuilds from main.
 - 2026-09-29 — Widget chips now show recent spends until frequent ones exist; 1.2.2 — next: owner rebuilds from main.

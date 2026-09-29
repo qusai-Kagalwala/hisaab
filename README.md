@@ -76,6 +76,14 @@ npx eas-cli@latest build -p android --profile preview
 - [Decisions](docs/DECISIONS.md) — choices already made, and why
 - [Install](docs/INSTALL.md) — APK, widget, updates, backups
 
+## Author
+
+**Qusai Kagalwala** — Saifee Technologies
+
+[GitHub](https://github.com/qusai-Kagalwala) · [LinkedIn](https://www.linkedin.com/in/qusai-kagalwala/)
+
+Designed and built Hisaab: product idea, UX and the full app.
+
 ## Privacy
 
 All data stays on your phone. With AI switched on (your own free Gemini key), only the few totals a question
