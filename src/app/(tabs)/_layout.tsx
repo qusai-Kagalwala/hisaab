@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '../../components/Icon';
 import { usePalette } from '../../components/theme';
 import { useLedgerStore } from '../../store/ledgerStore';
@@ -9,6 +10,8 @@ export const unstable_settings = { initialRouteName: 'index' };
 
 export default function TabsLayout() {
   const p = usePalette();
+  // Room for Android's own navigation (3-button bar or gesture line) below the tabs.
+  const insets = useSafeAreaInsets();
   const attention = useLedgerStore((s) => s.pending.length + (s.rollover ? 1 : 0) + s.debts.filter((d) => d.due_now_paise > 0).length);
   const icon = (outline: IconName, filled: IconName) =>
     function TabIcon({ focused, color }: { focused: boolean; color: ColorValue }) {
@@ -23,7 +26,7 @@ export default function TabsLayout() {
         tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: p.accent,
         tabBarInactiveTintColor: p.textMuted,
-        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, height: 62, paddingTop: 4 },
+        tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, height: 62 + insets.bottom, paddingTop: 4, paddingBottom: insets.bottom },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
         headerStyle: { backgroundColor: p.background },
         headerTintColor: p.text,
