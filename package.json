@@ -1,6 +1,6 @@
 {
   "name": "hisaab",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -57,6 +57,7 @@
     "postinstall": "patch-package"
   },
   "private": true,
+  "author": "Qusai Kagalwala (Saifee Technologies)",
   "jest": {
     "preset": "jest-expo",
     "testMatch": [
