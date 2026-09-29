@@ -27,6 +27,9 @@ import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { savedTap } from '../../utils/haptics';
 
+/** Outside the component so the React compiler doesn't treat it as render-time work. */
+const currentTime = () => Date.now();
+
 interface SaveInput {
   type: CategoryKind;
   category: Category;
@@ -135,7 +138,7 @@ export function CaptureScreen() {
       setInput('');
       setText('');
       setHint(null);
-      setGuessTime(Date.now());
+      setGuessTime(currentTime());
     } catch {
       setHint("Couldn't save that — please try again");
     } finally {
