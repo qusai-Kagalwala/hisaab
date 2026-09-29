@@ -117,6 +117,7 @@ Notes:
 
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-09-29 — Widget chips now show recent spends until frequent ones exist; 1.2.2 — next: owner rebuilds from main.
 - 2026-09-29 — Owner crash on 1.2.0 ("NativeDatabase.execAsync rejected — NullPointerException"): the widget shared and then closed the app's DB connection → widget now uses its own connection; 1.2.1 — next: owner rebuilds and re-tests with the widget on the home screen.
 - 2026-09-29 — Owner report: widget + only worked with the app in the background → patched the widget library to open via an activity intent; hardened migrations/widget/error screens; 280 tests green — next: owner builds 1.2.0 and tests + with the app fully closed.
 - 2026-09-29 — Optimisation pass: ledger cache (~14× faster reload at 10k entries), image compression, optional R8 profile, backup reminder, haptics, store split, CI; 278 tests, tsc, lint green; browser run-through passed — next: owner tests APK 1.1.0, then builds 1.2.0.

@@ -49,6 +49,31 @@ export function quickPicks(
     .map(({ last: _last, ...pick }) => pick);
 }
 
+/**
+ * For the home-screen widget: frequent spends first, then the most recent
+ * different spends to fill the row — so it's useful from the first entry.
+ */
+export function frequentThenRecent(
+  transactions: readonly EffectiveTransaction[],
+  nowMs: number,
+  excluded: ReadonlySet<number> = new Set(),
+  limit = 3,
+): QuickPick[] {
+  const picks = quickPicks(transactions, nowMs, excluded, limit);
+  const seen = new Set(picks.map((p) => `${p.category_id}:${p.amount_paise}`));
+  const since = nowMs - QUICK_WINDOW_DAYS * DAY_MS;
+  const newest = [...transactions].sort((a, b) => b.occurred_at - a.occurred_at || b.id - a.id);
+  for (const t of newest) {
+    if (picks.length >= limit) break;
+    if (t.type !== 'expense' || t.occurred_at < since || t.occurred_at > nowMs || !isUserEntry(t, excluded)) continue;
+    const key = `${t.category_id}:${t.amount_paise}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    picks.push({ category_id: t.category_id!, amount_paise: t.amount_paise, account_id: t.account_id, note: t.note, count: 1 });
+  }
+  return picks;
+}
+
 /** The latest entry the user logged themselves (for long-press repeat). */
 export function lastEntry(
   transactions: readonly EffectiveTransaction[],

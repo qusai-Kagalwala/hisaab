@@ -1,6 +1,6 @@
 import { CATEGORY_ID as C } from '../defaults';
 import { resolveTransactions } from '../ledger';
-import { lastEntry, quickPicks } from '../quickPicks';
+import { frequentThenRecent, lastEntry, quickPicks } from '../quickPicks';
 import type { TransactionRow } from '../types';
 
 let id = 1;
@@ -30,5 +30,31 @@ describe('quickPicks', () => {
     const rows = [a, voided, tx({ type: 'correction', corrects_id: voided.id, amount_paise: 0 }), tx({ category_id: 17, created_at: now - 1_000 }), tx({ id: 999, created_at: now })];
     expect(lastEntry(resolveTransactions(rows), new Set([999]))?.amount_paise).toBe(1_111);
     expect(lastEntry([])).toBeNull();
+  });
+});
+
+describe('frequentThenRecent (widget)', () => {
+  it('shows recent spends from the very first entry', () => {
+    const txs = resolveTransactions([tx({ category_id: C.food, amount_paise: 45_000 })]);
+    expect(frequentThenRecent(txs, now).map((p) => p.amount_paise)).toEqual([45_000]);
+  });
+
+  it('frequent first, then the newest different spends; skips income, bills, deleted and old ones', () => {
+    const rows = [
+      tx({ amount_paise: 2_000, created_at: now - 5 * 3_600_000 }),
+      tx({ amount_paise: 2_000, created_at: now - 4 * 3_600_000 }), // chai ₹20 twice → frequent
+      tx({ category_id: C.transport, amount_paise: 5_000, created_at: now - 3 * 3_600_000 }),
+      tx({ category_id: C.food, amount_paise: 30_000, created_at: now - 2 * 3_600_000 }),
+      tx({ category_id: C.salary, type: 'income', amount_paise: 1_000_000, created_at: now - 3_600_000 }),
+      tx({ category_id: C.groceries, amount_paise: 9_900, created_at: now - 40 * 86_400_000 }),
+    ];
+    const txs = resolveTransactions(rows);
+    expect(frequentThenRecent(txs, now).map((p) => [p.category_id, p.amount_paise])).toEqual([
+      [C.chai, 2_000],
+      [C.food, 30_000],
+      [C.transport, 5_000],
+    ]);
+    const bill = txs.find((t) => t.category_id === C.food)!;
+    expect(frequentThenRecent(txs, now, new Set([bill.id])).map((p) => p.category_id)).toEqual([C.chai, C.transport]);
   });
 });
