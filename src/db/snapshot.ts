@@ -3,9 +3,11 @@
  * by the app's store and by the home-screen widget (which runs without the
  * app open). Read-only: it never writes.
  */
+import { backupNudge, type BackupNudge } from '../engine/backupNudge';
 import {
   activeBuckets,
   computeMoneyPicture,
+  moneyAddsUp,
   safeToSpend,
   type Bucket,
   type MoneyPicture,
@@ -15,7 +17,8 @@ import { monthKey, monthStartMs, shiftMonth, type MonthKey } from '../engine/cal
 import { debtStatus, repaymentsThisMonth, type DebtStatus } from '../engine/debts';
 import { goalStatus, setAsideForGoals, type GoalStatus } from '../engine/goals';
 import { computeInsights, everydayExpenses, spendingByCategory, type Insight } from '../engine/insights';
-import { computeBalances, resolveTransactions } from '../engine/ledger';
+import { computeBalances } from '../engine/ledger';
+import { loadLedger } from './ledgerCache';
 import type { Paise } from '../engine/money';
 import type { MerchantMemory } from '../engine/parser';
 import { lastEntry, quickPicks, type QuickPick } from '../engine/quickPicks';
@@ -27,8 +30,9 @@ import {
   getSettingsWithPrefix,
   listAccounts,
   listCategories,
-  listTransactionRows,
+  SETTING_BACKUP_SNOOZE,
   SETTING_BUCKETS_OFF,
+  SETTING_LAST_BACKUP,
   SETTING_CAPTURE_MODE,
   SETTING_LAST_ACCOUNT,
   SETTING_ONBOARDING_DONE,
@@ -61,6 +65,8 @@ export interface Snapshot {
   /** Borrow & lend, with what's owed and what's due (all of them, incl. settled). */
   debts: DebtStatus[];
   theme: ThemeMode;
+  /** "Back up now?" reminder on Home. */
+  backup: BackupNudge;
   merchantMemory: MerchantMemory[];
   recurringTxIds: Set<number>;
   captureMode: 'keypad' | 'text';
@@ -87,10 +93,11 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     listDebts(db),
     getSetting(db, SETTING_THEME),
   ]);
-  const [allAccounts, categories, rows, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
+  const [lastBackupRaw, snoozeRaw] = await Promise.all([getSetting(db, SETTING_LAST_BACKUP), getSetting(db, SETTING_BACKUP_SNOOZE)]);
+  const [allAccounts, categories, ledger, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
     listAccounts(db),
     listCategories(db),
-    listTransactionRows(db),
+    loadLedger(db, typeof __DEV__ !== 'undefined' && __DEV__),
     getSetting(db, SETTING_LAST_ACCOUNT),
     listAllBuckets(db),
     listRecurring(db),
@@ -100,10 +107,18 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
   ]);
   const goals = goalsRaw.map((g) => goalStatus(g, contributions, now));
   const goalsPaise = setAsideForGoals(goals);
-  const transactions = resolveTransactions(rows);
+  const transactions = ledger.list;
   const balances = computeBalances(allAccounts.map((a) => a.id), transactions);
   const accounts = allAccounts.filter((a) => !a.archived);
-  const debts = debtsRaw.map((d) => debtStatus(d, transactions, now));
+  // Group borrow/lend entries once instead of scanning the ledger per person.
+  const byDebt = new Map<number, EffectiveTransaction[]>();
+  for (const t of transactions) {
+    if (t.debt_id == null) continue;
+    const list = byDebt.get(t.debt_id);
+    if (list) list.push(t);
+    else byDebt.set(t.debt_id, [t]);
+  }
+  const debts = debtsRaw.map((d) => debtStatus(d, byDebt.get(d.id) ?? [], now));
   const repayments = repaymentsThisMonth(debts);
   const last = lastRaw == null ? null : Number(lastRaw);
   const lastAccountId = accounts.some((a) => a.id === last) ? last : accounts[0]?.id ?? null;
@@ -114,6 +129,9 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
       balances, buckets, transactions, reserved_paise: reserved, repayments_paise: repayments, goals_paise: goalsPaise,
     });
   const picture = pictureFor(activeBuckets(allBuckets, month));
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && !moneyAddsUp(picture)) {
+    console.error('Hisaab: money picture does not add up to the account totals', picture);
+  }
 
   return {
     now,
@@ -132,11 +150,17 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     goals,
     debts,
     theme: themeRaw === 'light' || themeRaw === 'dark' ? themeRaw : 'system',
+    backup: backupNudge({
+      nowMs: now,
+      lastBackupAt: lastBackupRaw == null ? null : Number(lastBackupRaw),
+      firstEntryAt: transactions.length ? transactions[transactions.length - 1].occurred_at : null, // list is newest first
+      snoozedUntil: snoozeRaw == null ? null : Number(snoozeRaw),
+    }),
     merchantMemory,
     recurringTxIds,
     captureMode: modeRaw === 'text' ? 'text' : 'keypad',
     needsOnboarding:
-      onboardedRaw !== '1' && rows.length === 0 && recurring.length === 0 && allBuckets.length === 0 && debtsRaw.length === 0,
+      onboardedRaw !== '1' && ledger.originals.size === 0 && recurring.length === 0 && allBuckets.length === 0 && debtsRaw.length === 0,
     picture,
     safe: safeToSpend(picture, now),
     insights: computeInsights({ transactions, excludedIds: recurringTxIds, categories, buckets: picture.buckets, nowMs: now }),

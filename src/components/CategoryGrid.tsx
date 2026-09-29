@@ -36,7 +36,7 @@ export function CategoryGrid({ categories, highlightedId, selectedIds, onPress, 
             ]}
           >
             <CategoryIcon icon={c.icon} size={24} color={highlighted ? p.accent : p.text} />
-            <Text numberOfLines={1} style={[styles.label, { color: p.text }]}>
+            <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.label, { color: p.text }]}>
               {c.name}
             </Text>
           </Pressable>

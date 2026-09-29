@@ -1,4 +1,5 @@
 import { BACKUP_TABLES, buildBackup, type BackupFile, type BackupTable, type Row } from '../engine/backup';
+import { invalidateLedgerCache } from './ledgerCache';
 import { LATEST_SCHEMA_VERSION } from './migrations';
 import type { Db } from './types';
 
@@ -14,6 +15,7 @@ export async function exportAll(db: Db, nowMs = Date.now()): Promise<BackupFile>
  * copied, so older backups get defaults for newer columns.
  */
 export async function importAll(db: Db, backup: BackupFile): Promise<void> {
+  invalidateLedgerCache(db);
   await db.withTransactionAsync(async () => {
     for (const t of [...BACKUP_TABLES].reverse()) await db.runAsync(`DELETE FROM ${t}`);
     await db.runAsync("DELETE FROM sqlite_sequence").catch(() => undefined);
@@ -31,4 +33,5 @@ export async function importAll(db: Db, backup: BackupFile): Promise<void> {
       }
     }
   });
+  invalidateLedgerCache(db);
 }

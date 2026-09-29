@@ -6,6 +6,7 @@ import { formatINR, inputToPaise, paiseToInput } from '../engine/money';
 import { useLedgerStore } from '../store/ledgerStore';
 import { useUndoStore } from '../store/undoStore';
 import { dayLabel } from '../utils/dates';
+import { savedTap } from '../utils/haptics';
 import { usePalette } from './theme';
 import { Button, Card, MoneyField } from './ui';
 
@@ -30,6 +31,7 @@ export function PendingCard({ item }: { item: PendingItem }) {
     setBusy(true);
     try {
       await action();
+      savedTap();
       showUndo(message, async () => {
         await reopen(db, item.id);
       });

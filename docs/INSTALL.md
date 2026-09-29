@@ -79,6 +79,10 @@ The chips appear once you've logged the same thing a couple of times.
    Your data stays, because it's the same app signed with the same key. The
    database upgrades itself on first open (e.g. 1.1.0 adds borrow & lend).
 
+> Want it even smaller? `npx eas-cli@latest build -p android --profile preview-small`
+> also turns on Android's code shrinker. Test that APK fully (open every screen,
+> log, widget, mic) before using it every day — it can break a library.
+>
 > Very old 32-bit phone and the APK won't install? Remove the `env` block from
 > the `preview` profile in `eas.json` and build again (bigger, but runs everywhere).
 

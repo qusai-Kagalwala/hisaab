@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CategoryIcon, Icon, type IconName } from '../../components/Icon';
 import { usePalette } from '../../components/theme';
@@ -31,6 +31,8 @@ export function HistoryScreen() {
   const monthFilter = params.month || null;
 
   const [query, setQuery] = useState('');
+  // Typing stays instant; the list catches up a moment later on long histories.
+  const deferredQuery = useDeferredValue(query);
   const [type, setType] = useState<TypeFilter>('all');
   const [accountId, setAccountId] = useState<number | null>(null);
 
@@ -43,8 +45,8 @@ export function HistoryScreen() {
     [categories, allAccounts, debts],
   );
   const filtered = useMemo(
-    () => filterEntries(transactions, { query, type, categoryId: categoryFilter, accountId, month: monthFilter }, lookups),
-    [transactions, query, type, categoryFilter, accountId, monthFilter, lookups],
+    () => filterEntries(transactions, { query: deferredQuery, type, categoryId: categoryFilter, accountId, month: monthFilter }, lookups),
+    [transactions, deferredQuery, type, categoryFilter, accountId, monthFilter, lookups],
   );
   const sections = useMemo(() => groupByDay(filtered).map((g) => ({ ...g, data: g.transactions })), [filtered]);
   const hasAny = transactions.some((t) => !t.voided);
@@ -123,6 +125,9 @@ export function HistoryScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         stickySectionHeadersEnabled={false}
+        initialNumToRender={15}
+        maxToRenderPerBatch={20}
+        windowSize={9}
         ListEmptyComponent={
           <Text style={{ color: p.textMuted, textAlign: 'center', marginTop: 32 }}>
             {filtering ? 'Nothing matches. Try another search or filter.' : 'Nothing here yet.'}

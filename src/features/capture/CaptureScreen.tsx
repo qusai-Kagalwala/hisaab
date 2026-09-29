@@ -25,6 +25,7 @@ import { startListening, voiceAvailable, type Listening } from './voice';
 import type { Category, CategoryKind } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
+import { savedTap } from '../../utils/haptics';
 
 interface SaveInput {
   type: CategoryKind;
@@ -126,6 +127,7 @@ export function CaptureScreen() {
         { type, account_id: accountId, category_id: category.id, amount_paise: amount, note: note || null },
         { learn },
       );
+      savedTap();
       const amountText = formatINR(amount, { signed: type === 'income' });
       showUndo(`${verb ?? (type === 'income' ? 'Added' : 'Saved')} ${amountText} · ${category.name}`, async () => {
         await undoNew(db, id);

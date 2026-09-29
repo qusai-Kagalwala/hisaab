@@ -273,6 +273,7 @@ function BackupSection() {
   const onExport = async () => {
     try {
       const name = await shareBackup(db);
+      await useLedgerStore.getState().markBackedUp(db);
       setMessage(`Backup ready: ${name}. Keep it somewhere safe (Drive, email, WhatsApp to yourself).`);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Export failed.');

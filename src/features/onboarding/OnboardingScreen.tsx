@@ -166,11 +166,12 @@ export function OnboardingScreen() {
               {([
                 ['lightning-bolt-outline', 'Log a spend in 3 taps'],
                 ['calendar-today', 'Know what’s safe to spend today'],
+                ['hand-coin-outline', 'Track borrowing and lending, with simple repayment plans'],
                 ['shield-lock-outline', 'Private: stays on your phone, no login'],
               ] as [IconName, string][]).map(([icon, text]) => (
                 <View key={text} style={styles.point}>
                   <Icon name={icon} size={22} color={p.accent} />
-                  <Text style={{ color: p.text, fontSize: 15 }}>{text}</Text>
+                  <Text style={{ color: p.text, fontSize: 15, flex: 1 }}>{text}</Text>
                 </View>
               ))}
             </View>
