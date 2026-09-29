@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNDO_WINDOW_MS, useUndoStore } from '../store/undoStore';
 import { usePalette } from './theme';
@@ -11,13 +11,20 @@ export function UndoToast() {
   const insets = useSafeAreaInsets();
   const p = usePalette();
   const [busy, setBusy] = useState(false);
+  const [enter] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (!toast) return;
+    enter.setValue(0);
+    Animated.timing(enter, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    const shown = setTimeout(() => enter.setValue(1), 400); // in case the animation can't run
     const key = toast.key;
     const timer = setTimeout(() => dismiss(key), UNDO_WINDOW_MS);
-    return () => clearTimeout(timer);
-  }, [toast, dismiss]);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(shown);
+    };
+  }, [toast, dismiss, enter]);
 
   if (!toast) return null;
 
@@ -34,14 +41,21 @@ export function UndoToast() {
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + 8 }]}>
-      <View style={[styles.toast, { backgroundColor: p.toast }]} accessibilityLiveRegion="polite">
+      <Animated.View
+        style={[
+          styles.toast,
+          { backgroundColor: p.toast, opacity: enter },
+          { transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] },
+        ]}
+        accessibilityLiveRegion="polite"
+      >
         <Text style={[styles.message, { color: p.toastText }]} numberOfLines={1}>
           {toast.message}
         </Text>
         <Pressable onPress={onUndo} hitSlop={12} accessibilityRole="button" style={styles.undo}>
           <Text style={[styles.undoText, { color: p.toastText }]}>Undo</Text>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 }

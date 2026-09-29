@@ -1,4 +1,4 @@
-import { ADJUSTMENT_CATEGORY, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../engine/defaults';
+import { ADJUSTMENT_CATEGORY, CATEGORY_ICONS, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../engine/defaults';
 import type { Db } from './types';
 
 /**
@@ -157,6 +157,37 @@ const MIGRATIONS: readonly ((db: Db) => Promise<void>)[] = [
     await db.execAsync(`
       ALTER TABLE goals ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done', 'removed'));
       CREATE INDEX idx_goal_contributions_goal ON goal_contributions(goal_id);
+    `);
+  },
+
+  // 5 — default categories use icon names instead of emoji.
+  async (db) => {
+    for (const [id, icon] of Object.entries(CATEGORY_ICONS)) {
+      await db.runAsync('UPDATE categories SET icon = ? WHERE id = ? AND is_default = 1', icon, Number(id));
+    }
+  },
+
+  // 6 — transfers between accounts, borrow & lend (with repayment plans),
+  // and removable accounts. Transfers reuse the existing 'transfer' type.
+  async (db) => {
+    await db.execAsync(`
+      ALTER TABLE accounts ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
+
+      CREATE TABLE debts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('borrowed', 'lent')),
+        months INTEGER CHECK (months IS NULL OR (months >= 1 AND months <= 120)),
+        per_month_paise INTEGER CHECK (per_month_paise IS NULL OR per_month_paise > 0),
+        first_due INTEGER,
+        created_at INTEGER NOT NULL,
+        CHECK (months IS NULL OR per_month_paise IS NULL)
+      );
+
+      ALTER TABLE transactions ADD COLUMN to_account_id INTEGER REFERENCES accounts(id);
+      ALTER TABLE transactions ADD COLUMN debt_id INTEGER REFERENCES debts(id);
+      ALTER TABLE transactions ADD COLUMN direction TEXT CHECK (direction IN ('in', 'out'));
+      CREATE INDEX idx_transactions_debt_id ON transactions(debt_id);
     `);
   },
 ];

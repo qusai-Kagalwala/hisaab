@@ -52,3 +52,8 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 export function monthName(key: MonthKey): string {
   return MONTH_NAMES[parseMonth(key).month0];
 }
+
+/** "March 2027" */
+export function monthLabel(key: MonthKey): string {
+  return `${monthName(key)} ${key.slice(0, 4)}`;
+}

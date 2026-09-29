@@ -68,6 +68,27 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
   { id: CATEGORY_ID.otherIncome, name: 'Other income', icon: '💰', kind: 'income', keywords: [] },
 ];
 
+/** Icon names (Material Community Icons) for the default categories — set by migration 5. */
+export const CATEGORY_ICONS: Readonly<Record<number, string>> = {
+  [CATEGORY_ID.food]: 'silverware-fork-knife',
+  [CATEGORY_ID.chai]: 'coffee',
+  [CATEGORY_ID.transport]: 'rickshaw',
+  [CATEGORY_ID.groceries]: 'cart',
+  [CATEGORY_ID.shopping]: 'shopping',
+  [CATEGORY_ID.bills]: 'cellphone',
+  [CATEGORY_ID.rent]: 'home-city',
+  [CATEGORY_ID.entertainment]: 'movie-open',
+  [CATEGORY_ID.health]: 'pill',
+  [CATEGORY_ID.education]: 'book-open-variant',
+  [CATEGORY_ID.family]: 'account-group',
+  [CATEGORY_ID.other]: 'dots-horizontal-circle',
+  [CATEGORY_ID.salary]: 'briefcase',
+  [CATEGORY_ID.pocketMoney]: 'wallet',
+  [CATEGORY_ID.gift]: 'gift',
+  [CATEGORY_ID.otherIncome]: 'cash-plus',
+  17: 'scale-balance',
+};
+
 /** Hidden category for "update balance" entries (added in migration 2). */
 export const ADJUSTMENT_CATEGORY = {
   id: 17,

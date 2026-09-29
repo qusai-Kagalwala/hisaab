@@ -11,7 +11,7 @@ interface Props {
 export function AccountChips({ accounts, selectedId, onSelect }: Props) {
   const p = usePalette();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll} contentContainerStyle={styles.row}>
       {accounts.map((a) => {
         const selected = a.id === selectedId;
         return (
@@ -36,6 +36,7 @@ export function AccountChips({ accounts, selectedId, onSelect }: Props) {
 }
 
 const styles = StyleSheet.create({
+  scroll: { flexGrow: 0 },
   row: { gap: 8, paddingVertical: 2 },
   chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, borderWidth: 1 },
 });

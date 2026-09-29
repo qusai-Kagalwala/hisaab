@@ -2,6 +2,7 @@ import {
   BUCKET_TEMPLATES,
   bucketForCategory,
   computeMoneyPicture,
+  explainSafeToSpend,
   coverCandidates,
   coverOverspend,
   moveBetweenBuckets,
@@ -33,7 +34,7 @@ function tx(partial: Partial<TransactionRow>): TransactionRow {
 
 function checkInvariant(p: MoneyPicture) {
   const inBuckets = addPaise(...p.buckets.map((b) => b.remaining_paise));
-  expect(inBuckets + p.reserved_paise + p.goals_paise + p.unallocated_paise).toBe(p.total_paise);
+  expect(inBuckets + p.reserved_paise + p.repayments_paise + p.goals_paise + p.unallocated_paise).toBe(p.total_paise);
 }
 
 describe('computeMoneyPicture', () => {
@@ -89,7 +90,9 @@ describe('computeMoneyPicture', () => {
       for (const t of txs) balances.set(t.account_id, balances.get(t.account_id)! + (t.type === 'income' ? t.amount_paise : -t.amount_paise));
       const reserved = rand(200_000);
       const goals = rand(300_000);
-      const picture = () => computeMoneyPicture({ balances, buckets, transactions: txs, reserved_paise: reserved, goals_paise: goals });
+      const repayments = rand(150_000);
+      const picture = () =>
+        computeMoneyPicture({ balances, buckets, transactions: txs, reserved_paise: reserved, repayments_paise: repayments, goals_paise: goals });
 
       const before = picture();
       checkInvariant(before);
@@ -105,6 +108,9 @@ describe('computeMoneyPicture', () => {
         checkInvariant(after);
         expect(after.unallocated_paise).toBe(before.unallocated_paise);
       }
+      // The Home explanation always adds up to exactly the safe-to-spend pool.
+      const nowMs = new Date(2026, 8, 20).getTime();
+      expect(explainSafeToSpend(picture(), nowMs).pool_paise).toBe(safeToSpend(picture(), nowMs).pool_paise);
       const now = picture();
       const over = now.buckets.find((b) => b.remaining_paise < 0);
       const source = over && coverCandidates(now.buckets, over.id)[0];
@@ -120,7 +126,7 @@ describe('computeMoneyPicture', () => {
 });
 
 describe('safeToSpend', () => {
-  const base = { total_paise: 0, reserved_paise: 0, goals_paise: 0, in_buckets_paise: 0, plan_pool_paise: 0 };
+  const base = { total_paise: 0, reserved_paise: 0, repayments_paise: 0, goals_paise: 0, in_buckets_paise: 0, plan_pool_paise: 0 };
   const flexible = { ...bucket({ id: 1, role: 'flexible' }), spent_paise: 0, remaining_paise: 100_000 };
   const lastWeek = new Date(2026, 8, 24).getTime(); // 7 days left in September
 
@@ -222,5 +228,22 @@ describe('templates', () => {
       const cats = t.buckets.flatMap((b) => b.category_ids);
       expect(new Set(cats).size).toBe(cats.length);
     }
+  });
+});
+
+describe('explainSafeToSpend', () => {
+  it('shows the steps that lead to the daily number', () => {
+    const flexible = { ...bucket({ id: 1, role: 'flexible' as const, allocated_paise: 100_000 }), spent_paise: 0, remaining_paise: 100_000 };
+    const savings = { ...bucket({ id: 2, role: 'savings' as const, allocated_paise: 500_000 }), spent_paise: 0, remaining_paise: 500_000 };
+    const fun = { ...bucket({ id: 3, allocated_paise: 50_000 }), spent_paise: 70_000, remaining_paise: -20_000 };
+    const picture: MoneyPicture = {
+      total_paise: 3_452_000, reserved_paise: 800_000, repayments_paise: 0, goals_paise: 500_000,
+      buckets: [flexible, savings, fun], in_buckets_paise: 580_000, unallocated_paise: 3_452_000 - 800_000 - 500_000 - 580_000, plan_pool_paise: 0,
+    };
+    const e = explainSafeToSpend(picture, new Date(2026, 8, 28).getTime());
+    expect(e.steps.map((s) => [s.op, s.paise])).toEqual([
+      ['start', 3_452_000], ['minus', 800_000], ['minus', 500_000], ['minus', 500_000], ['equals', 1_652_000],
+    ]);
+    expect(e).toMatchObject({ days_left: 3, per_day_paise: Math.floor(1_652_000 / 3) });
   });
 });

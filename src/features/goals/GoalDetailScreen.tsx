@@ -82,7 +82,7 @@ function GoalView({ goal }: { goal: GoalStatus }) {
         <ProgressBar fraction={goal.saved_paise / goal.target_paise} />
         <Text style={{ color: p.textMuted }}>
           {goal.remaining_paise === 0
-            ? 'Reached! 🎉'
+            ? 'Reached — well done!'
             : goal.eta_month
               ? `At your pace (${formatINR(goal.pace_paise, { paise: 'never' })}/month): ${goal.name} by ${monthLabel(goal.eta_month)}.`
               : 'No pace yet — put some money in to see an ETA.'}

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Icon } from '../../components/Icon';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { Button, Card, MoneyField, ProgressBar, SectionTitle } from '../../components/ui';
 import { monthKey, monthStartMs, shiftMonth } from '../../engine/calendar';
@@ -64,7 +65,7 @@ export function GoalsScreen() {
               <ProgressBar fraction={g.target_paise > 0 ? g.saved_paise / g.target_paise : 0} />
               <Text style={{ color: p.textMuted, fontSize: 13 }}>
                 {g.remaining_paise === 0
-                  ? 'Reached! 🎉'
+                  ? 'Reached — well done!'
                   : g.eta_month
                     ? `${g.name} by ${monthLabel(g.eta_month)} at your pace`
                     : 'Put some money in to see when you’ll get there'}
@@ -96,9 +97,12 @@ export function GoalsScreen() {
         <>
           <SectionTitle>Done</SectionTitle>
           {done.map((g) => (
-            <Text key={g.id} style={{ color: p.textMuted }}>
-              ✓ {g.name} · {formatINR(g.target_paise, { paise: 'never' })}
-            </Text>
+            <View key={g.id} style={styles.row}>
+              <Icon name="check-circle" size={18} color={p.accent} />
+              <Text style={{ color: p.textMuted }}>
+                {g.name} · {formatINR(g.target_paise, { paise: 'never' })}
+              </Text>
+            </View>
           ))}
         </>
       )}

@@ -2,9 +2,9 @@
  * Buckets are planned money, never expenses. Everything here is derived:
  *
  *   remaining(bucket) = allocated − this bucket's expenses
- *   unallocated       = account totals − reserved bills − goals − Σ remaining
+ *   unallocated       = account totals − reserved bills − repayments due − goals − Σ remaining
  *
- * so the invariant  Σ remaining + reserved + goals + unallocated == account totals
+ * so the invariant  Σ remaining + reserved + repayments + goals + unallocated == account totals
  * holds by construction, and the functions that change allocations
  * (move, cover, split) are tested to keep it.
  */
@@ -42,6 +42,8 @@ export interface MoneyPicture {
   total_paise: Paise;
   /** Fixed bills still to pay this month. */
   reserved_paise: Paise;
+  /** Repayments of borrowed money due this month. */
+  repayments_paise: Paise;
   /** Set aside in active goals. */
   goals_paise: Paise;
   buckets: BucketStatus[];
@@ -67,11 +69,14 @@ export function computeMoneyPicture(input: {
   buckets: readonly Bucket[];
   transactions: readonly EffectiveTransaction[];
   reserved_paise: Paise;
+  repayments_paise?: Paise;
   goals_paise?: Paise;
 }): MoneyPicture {
   const total = addPaise(...input.balances.values());
   const goals = input.goals_paise ?? 0;
+  const repayments = input.repayments_paise ?? 0;
   assertPaise(input.reserved_paise);
+  assertPaise(repayments);
   assertPaise(goals);
   const spending = bucketSpending(input.transactions);
   const buckets = [...input.buckets]
@@ -81,11 +86,12 @@ export function computeMoneyPicture(input: {
       return { ...b, spent_paise: spent, remaining_paise: subtractPaise(b.allocated_paise, spent) };
     });
   const inBuckets = addPaise(...buckets.map((b) => b.remaining_paise));
-  const unallocated = subtractPaise(subtractPaise(subtractPaise(total, input.reserved_paise), goals), inBuckets);
+  const unallocated = subtractPaise(total, input.reserved_paise, repayments, goals, inBuckets);
   const allocated = addPaise(...buckets.map((b) => b.allocated_paise));
   return {
     total_paise: total,
     reserved_paise: input.reserved_paise,
+    repayments_paise: repayments,
     goals_paise: goals,
     buckets,
     in_buckets_paise: inBuckets,
@@ -273,3 +279,40 @@ export const BUCKET_TEMPLATES: readonly BucketTemplate[] = [
     ],
   },
 ];
+
+export interface SafeToSpendStep {
+  label: string;
+  paise: Paise;
+  op: 'start' | 'minus' | 'equals';
+}
+
+/**
+ * The same number as safeToSpend(), explained step by step:
+ *   accounts − bills − repayments − goals − still planned in other buckets = free money
+ *   free money ÷ days left = safe to spend today
+ * (Flexible and unplanned money are both "free"; an overspend nobody
+ * covered is already inside the lower totals.)
+ */
+export function explainSafeToSpend(picture: MoneyPicture, nowMs: number): {
+  steps: SafeToSpendStep[];
+  pool_paise: Paise;
+  days_left: number;
+  per_day_paise: Paise;
+} {
+  const plannedElsewhere = addPaise(
+    ...picture.buckets.filter((b) => b.role !== 'flexible' && b.remaining_paise > 0).map((b) => b.remaining_paise),
+  );
+  const pool = subtractPaise(
+    picture.total_paise, picture.reserved_paise, picture.repayments_paise, picture.goals_paise, plannedElsewhere,
+  );
+  const safe = safeToSpend(picture, nowMs);
+  if (pool !== safe.pool_paise) throw new Error('Safe-to-spend explanation does not add up');
+
+  const steps: SafeToSpendStep[] = [{ label: 'Money in all your accounts', paise: picture.total_paise, op: 'start' }];
+  if (picture.reserved_paise > 0) steps.push({ label: 'Kept aside for bills still due this month', paise: picture.reserved_paise, op: 'minus' });
+  if (picture.repayments_paise > 0) steps.push({ label: 'Kept aside to repay borrowed money this month', paise: picture.repayments_paise, op: 'minus' });
+  if (picture.goals_paise > 0) steps.push({ label: 'Set aside in your goals', paise: picture.goals_paise, op: 'minus' });
+  if (plannedElsewhere > 0) steps.push({ label: 'Still planned in your buckets (except Flexible)', paise: plannedElsewhere, op: 'minus' });
+  steps.push({ label: 'Free to spend for the rest of this month', paise: pool, op: 'equals' });
+  return { steps, pool_paise: pool, days_left: safe.days_left, per_day_paise: safe.per_day_paise };
+}

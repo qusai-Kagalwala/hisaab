@@ -14,12 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountChips } from '../../components/AccountChips';
 import { CategoryGrid } from '../../components/CategoryGrid';
+import { CategoryIcon, Icon } from '../../components/Icon';
 import { Keypad } from '../../components/Keypad';
 import { OverspendCard } from '../../components/OverspendCard';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { guessCategory } from '../../engine/categoryGuess';
 import { applyKeypadKey, formatINR, formatKeypadInput, inputToPaise, type Paise } from '../../engine/money';
 import { parseEntry } from '../../engine/parser';
+import { startListening, voiceAvailable, type Listening } from './voice';
 import type { Category, CategoryKind } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
@@ -63,6 +65,34 @@ export function CaptureScreen() {
   const [kind, setKind] = useState<CategoryKind>('expense');
   const [hint, setHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [moreWays, setMoreWays] = useState(false);
+  // In-app mic (APK only); the keyboard's own mic works everywhere.
+  const [canListen] = useState(voiceAvailable);
+  const [listening, setListening] = useState<Listening | null>(null);
+
+  const toggleMic = async () => {
+    if (listening) {
+      listening.stop();
+      return;
+    }
+    setHint('Listening… say it like “chai bees” or “auto fifty cash”');
+    try {
+      const l = await startListening({
+        onText: (t) => setText(t),
+        onEnd: () => {
+          setListening(null);
+          setHint(null);
+        },
+        onError: (m) => {
+          setListening(null);
+          setHint(m);
+        },
+      });
+      setListening(l);
+    } catch (e) {
+      setHint(e instanceof Error ? e.message : 'Voice is not available.');
+    }
+  };
 
   // Refreshed after each save and on focus, so the guess follows the time of day.
   const [guessTime, setGuessTime] = useState(() => Date.now());
@@ -143,11 +173,11 @@ export function CaptureScreen() {
   };
 
   const chips = picks.length > 0 && (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
       {picks.map((pick) => {
         const category = categories.find((c) => c.id === pick.category_id);
         if (!category || lastAccountId == null) return null;
-        const label = `${category.icon} ${formatINR(pick.amount_paise, { paise: 'auto' })}`;
+        const label = formatINR(pick.amount_paise, { paise: 'auto' });
         return (
           <Pressable
             key={`${pick.category_id}:${pick.amount_paise}`}
@@ -156,7 +186,10 @@ export function CaptureScreen() {
             accessibilityLabel={`Quick add ${formatINR(pick.amount_paise)} ${category.name}`}
             style={({ pressed }) => [styles.chip, { backgroundColor: pressed ? p.surfacePressed : p.surface, borderColor: p.border }]}
           >
-            <Text style={[styles.chipText, { color: p.text }]}>{label}</Text>
+            <View style={styles.chipInner}>
+              <CategoryIcon icon={category.icon} size={18} color={p.accent} />
+              <Text style={[styles.chipText, { color: p.text }]}>{label}</Text>
+            </View>
           </Pressable>
         );
       })}
@@ -166,7 +199,7 @@ export function CaptureScreen() {
   const topBar = (
     <View style={styles.topBar}>
       <Pressable
-        onPress={() => router.push('/home')}
+        onPress={() => router.navigate('/home')}
         hitSlop={8}
         style={[styles.pill, { backgroundColor: p.accentSoft }]}
         accessibilityRole="button"
@@ -199,9 +232,40 @@ export function CaptureScreen() {
       ) : (
         <View />
       )}
-      <Pressable onPress={() => router.push('/history')} hitSlop={8} style={styles.navButton} accessibilityRole="button">
-        <Text style={[styles.navText, { color: p.textMuted }]}>History</Text>
+      <Pressable
+        onPress={() => setMoreWays((v) => !v)}
+        hitSlop={8}
+        style={[styles.navButton, moreWays && { backgroundColor: p.accentSoft }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: moreWays }}
+        accessibilityLabel="Move money, borrowed or lent"
+      >
+        <Icon name="swap-horizontal" size={24} color={moreWays ? p.accent : p.textMuted} />
       </Pressable>
+    </View>
+  );
+
+  // Less frequent entries, one tap away: they are not spending or income.
+  const moreRow = moreWays && (
+    <View style={styles.moreRow}>
+      {([
+        { label: 'Move money', icon: 'swap-horizontal', go: () => router.push('/transfer') },
+        { label: 'I borrowed', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'borrowed' } }) },
+        { label: 'I lent', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'lent' } }) },
+      ] as const).map((w) => (
+        <Pressable
+          key={w.label}
+          onPress={() => {
+            setMoreWays(false);
+            w.go();
+          }}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.moreChip, { borderColor: p.border, backgroundColor: pressed ? p.surfacePressed : p.surface }]}
+        >
+          <Icon name={w.icon} size={18} color={p.accent} />
+          <Text style={{ color: p.text, fontWeight: '600', fontSize: 13 }}>{w.label}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 
@@ -216,20 +280,25 @@ export function CaptureScreen() {
       hitSlop={8}
       style={[styles.toggle, { borderColor: p.border }]}
     >
-      <Text style={{ color: p.textMuted, fontWeight: '600' }}>{mode === 'keypad' ? 'Aa  Type' : '123  Keypad'}</Text>
+      <View style={styles.chipInner}>
+        <Icon name={mode === 'keypad' ? 'keyboard-outline' : 'dialpad'} size={18} color={p.textMuted} />
+        <Text style={{ color: p.textMuted, fontWeight: '600' }}>{mode === 'keypad' ? 'Type' : 'Keypad'}</Text>
+      </View>
     </Pressable>
   );
 
   if (mode === 'text') {
     const preview = [
       parsed.amount_paise ? formatINR(parsed.amount_paise, { signed: effectiveKind === 'income' }) : null,
-      highlighted ? `${highlighted.icon} ${highlighted.name}` : null,
+      highlighted ? highlighted.name : null,
       accounts.find((a) => a.id === textAccountId)?.name,
     ].filter(Boolean).join(' · ');
     return (
-      <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {topBar}
+          {moreRow}
+          <View style={styles.inputRow}>
           <TextInput
             value={text}
             onChangeText={(t) => {
@@ -247,9 +316,20 @@ export function CaptureScreen() {
             accessibilityLabel="Type an entry"
             style={[styles.textInput, { color: p.text, borderColor: p.accent, backgroundColor: p.surface }]}
           />
+          {canListen && (
+            <Pressable
+              onPress={toggleMic}
+              accessibilityRole="button"
+              accessibilityLabel={listening ? 'Stop listening' : 'Speak an entry'}
+              style={[styles.mic, { backgroundColor: listening ? p.accent : p.accentSoft }]}
+            >
+              <Icon name={listening ? 'stop' : 'microphone-outline'} size={24} color={listening ? p.accentText : p.accent} />
+            </Pressable>
+          )}
+          </View>
           <View style={styles.previewRow}>
             <Text style={[styles.preview, { color: text ? p.text : p.textMuted }]} numberOfLines={2}>
-              {hint ?? (text ? preview || 'Add an amount…' : 'Tip: tap the 🎤 on your keyboard to speak it')}
+              {hint ?? (text ? preview || 'Add an amount…' : canListen ? 'Tip: tap the mic to speak it' : 'Tip: tap the mic on your keyboard to speak it')}
             </Text>
             {modeToggle}
           </View>
@@ -265,8 +345,9 @@ export function CaptureScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: p.background }]} edges={['top']}>
       {topBar}
+      {moreRow}
       <Pressable
         style={styles.amountArea}
         onLongPress={onRepeat}
@@ -307,8 +388,9 @@ export function CaptureScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 12 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
-  navButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  navText: { fontSize: 15, fontWeight: '500' },
+  navButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  moreRow: { flexDirection: 'row', gap: 8, paddingBottom: 6 },
+  moreChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 12, minHeight: 44 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, borderRadius: 999, paddingHorizontal: 12 },
   pillLabel: { fontSize: 12, fontWeight: '600' },
   pillAmount: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
@@ -322,10 +404,14 @@ const styles = StyleSheet.create({
   toggleRow: { marginTop: 8 },
   toggle: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   bottom: { gap: 10, paddingBottom: 8 },
+  chipsScroll: { flexGrow: 0 },
   chips: { gap: 8, paddingVertical: 2 },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' },
   chipText: { fontSize: 15, fontWeight: '600' },
-  textInput: { borderWidth: 2, borderRadius: 14, paddingHorizontal: 14, minHeight: MIN_TAP + 12, fontSize: 22, marginTop: 8 },
+  chipInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  textInput: { flex: 1, borderWidth: 2, borderRadius: 14, paddingHorizontal: 14, minHeight: MIN_TAP + 12, fontSize: 22, marginTop: 8 },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  mic: { width: MIN_TAP + 8, height: MIN_TAP + 12, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   previewRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
   preview: { flex: 1, fontSize: 16, fontWeight: '600' },
   textBottom: { gap: 10, paddingBottom: 16 },

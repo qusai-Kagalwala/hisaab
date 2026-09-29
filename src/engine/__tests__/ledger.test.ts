@@ -79,8 +79,51 @@ describe('computeBalances', () => {
     expect(balances.get(2)).toBe(-1_000);
   });
 
-  it('refuses transfers until they are modelled', () => {
-    expect(() => signedAmount({ type: 'transfer', amount_paise: 1 })).toThrow();
+  it('needs balanceEffects for transfers between two accounts', () => {
+    expect(() => signedAmount({ type: 'transfer', amount_paise: 1, to_account_id: 2 })).toThrow();
+    expect(signedAmount({ type: 'transfer', amount_paise: 5, direction: 'in' })).toBe(5);
+    expect(signedAmount({ type: 'transfer', amount_paise: 5, direction: 'out' })).toBe(-5);
+  });
+});
+
+describe('transfers', () => {
+  it('moves money between accounts without changing the total', () => {
+    const salary = row({ type: 'income', account_id: 2, amount_paise: 50_000, category_id: 13 });
+    const atm = row({ type: 'transfer', account_id: 2, to_account_id: 1, category_id: null, amount_paise: 20_000 });
+    const balances = computeBalances([1, 2], resolveTransactions([salary, atm]));
+    expect(balances.get(1)).toBe(20_000);
+    expect(balances.get(2)).toBe(30_000);
+  });
+
+  it('borrowing brings money in, repaying takes it out', () => {
+    const borrowed = row({ type: 'transfer', category_id: null, debt_id: 1, direction: 'in', amount_paise: 10_000 });
+    const repaid = row({ type: 'transfer', category_id: null, debt_id: 1, direction: 'out', amount_paise: 4_000 });
+    expect(computeBalances([1], resolveTransactions([borrowed, repaid])).get(1)).toBe(6_000);
+  });
+
+  it('corrections can change the destination but keep the person', () => {
+    const t = row({ type: 'transfer', account_id: 2, to_account_id: 1, category_id: null, amount_paise: 1_000 });
+    const [tx] = resolveTransactions([t]);
+    const c = buildCorrection(tx, { account_id: 2, category_id: null, amount_paise: 1_000, note: null, to_account_id: 3 });
+    expect(c).toMatchObject({ to_account_id: 3, debt_id: null, direction: null });
+    const fixed = resolveTransactions([t, row({ ...c!, type: 'correction', created_at: 1 })]);
+    expect(computeBalances([1, 2, 3], fixed)).toEqual(new Map([[1, 0], [2, -1_000], [3, 1_000]]));
+
+    const d = row({ type: 'transfer', category_id: null, debt_id: 7, direction: 'out', amount_paise: 500 });
+    const [debtTx] = resolveTransactions([d]);
+    expect(buildCorrection(debtTx, { account_id: 1, category_id: null, amount_paise: 300, note: null })).toMatchObject({
+      debt_id: 7, direction: 'out', to_account_id: null, amount_paise: 300,
+    });
+  });
+
+  it('rejects malformed transfers', () => {
+    expect(() => resolveTransactions([row({ type: 'transfer' })])).toThrow();
+    expect(() => resolveTransactions([row({ type: 'transfer', to_account_id: 1 })])).toThrow();
+    expect(() => resolveTransactions([row({ type: 'transfer', debt_id: 1 })])).toThrow();
+    const [tx] = resolveTransactions([row({ type: 'transfer', account_id: 2, to_account_id: 1 })]);
+    expect(() => buildCorrection(tx, { account_id: 1, category_id: null, amount_paise: 1, note: null })).toThrow();
+    const [spend] = resolveTransactions([row({})]);
+    expect(() => buildCorrection(spend, { account_id: 1, category_id: 1, amount_paise: 1, note: null, to_account_id: 2 })).toThrow();
   });
 });
 
@@ -99,6 +142,9 @@ describe('buildCorrection', () => {
       bucket_id: null,
       amount_paise: 1_000,
       note: null,
+      to_account_id: null,
+      debt_id: null,
+      direction: null,
     });
   });
 

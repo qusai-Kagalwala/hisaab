@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { KeypadKey } from '../engine/money';
+import { Icon } from './Icon';
 import { MIN_TAP, usePalette } from './theme';
 
 const ROWS: KeypadKey[][] = [
@@ -33,7 +34,11 @@ export function Keypad({ onKey, onClear }: Props) {
                 { backgroundColor: pressed ? p.surfacePressed : p.surface, borderColor: p.border },
               ]}
             >
-              <Text style={[styles.keyText, { color: p.text }]}>{key === 'back' ? '⌫' : key}</Text>
+              {key === 'back' ? (
+                <Icon name="backspace-outline" size={26} color={p.text} />
+              ) : (
+                <Text style={[styles.keyText, { color: p.text }]}>{key}</Text>
+              )}
             </Pressable>
           ))}
         </View>

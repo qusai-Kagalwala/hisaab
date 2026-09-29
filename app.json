@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "hisaab",
+    "name": "Hisaab",
     "slug": "hisaab",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,20 +11,75 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1F7A5C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.qusaikagalwala.hisaab",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-sharing",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Hisaab uses the microphone only while you tap the mic to speak an entry.",
+          "speechRecognitionPermission": "Hisaab turns what you say into an entry, like \"chai 20\".",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "fonts": [
+            "./node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf"
+          ],
+          "widgets": [
+            {
+              "name": "QuickLog",
+              "label": "Hisaab quick log",
+              "description": "Safe to spend today, and log your usual spends in one tap",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "previewImage": "./assets/widget-preview.png",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 170,
+          "resizeMode": "contain",
+          "backgroundColor": "#1F7A5C",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0F4F3A"
+          }
+        }
+      ]
     ],
-    "scheme": "hisaab"
+    "scheme": "hisaab",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b5708f5e-0d8c-49ab-bbae-98a69c980de3"
+      }
+    }
   }
 }

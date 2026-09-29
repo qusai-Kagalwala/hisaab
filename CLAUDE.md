@@ -42,10 +42,12 @@ docs/          SPEC, PROGRESS, DECISIONS
 ```
 
 ## Commands
-- Start dev: `npx expo start`
+- Start dev: `npx expo start --go --tunnel` (Expo Go) — `--go` is needed because expo-dev-client is installed
 - Tests: `npm test`
 - Type check: `npx tsc --noEmit` (or `npm run typecheck`)
 - Lint: `npm run lint`
+- APK: `npx eas-cli@latest build -p android --profile preview` (see docs/INSTALL.md)
+- Dev build (widget, mic): `--profile development`, then `npx expo start --dev-client --tunnel`
 
 ## Working style
 - Build **one phase at a time** (see `docs/SPEC.md` → Build phases).

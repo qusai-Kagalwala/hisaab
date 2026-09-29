@@ -98,7 +98,8 @@ export async function learnMerchant(db: Db, note: string, categoryId: number): P
 
 export interface ChatMessage {
   id: number;
-  role: 'user' | 'assistant';
+  /** 'ai' = assistant reply phrased by Gemini; 'assistant' = offline answer. */
+  role: 'user' | 'assistant' | 'ai';
   content: string;
   created_at: number;
 }
