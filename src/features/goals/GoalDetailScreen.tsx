@@ -1,5 +1,4 @@
 import Slider from '@react-native-community/slider';
-import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +11,7 @@ import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { goBack } from '../../utils/nav';
 import { monthLabel } from './goalText';
+import { useScreenTitle } from '../../utils/useScreenTitle';
 
 /** What-if slider range: +₹0 … +₹20,000 per month in ₹500 steps. */
 const WHAT_IF_MAX_RUPEES = 20_000;
@@ -71,9 +71,9 @@ function GoalView({ goal }: { goal: GoalStatus }) {
     goBack('/goals');
   };
 
+  useScreenTitle(goal.name);
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: goal.name }} />
       <Card>
         <Text style={[styles.big, { color: p.text }]}>
           {formatINR(goal.saved_paise, { paise: 'never' })}

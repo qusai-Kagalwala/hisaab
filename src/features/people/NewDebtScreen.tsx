@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -10,6 +10,7 @@ import { formatINR, inputToPaise } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { draftFirstDue, draftPlan, PlanEditor, type PlanDraft } from './PlanEditor';
+import { useScreenTitle } from '../../utils/useScreenTitle';
 
 export function NewDebtScreen() {
   const db = useSQLiteContext();
@@ -63,9 +64,9 @@ export function NewDebtScreen() {
     }
   };
 
+  useScreenTitle(kind === 'borrowed' ? 'I borrowed money' : 'I lent money');
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: kind === 'borrowed' ? 'I borrowed money' : 'I lent money' }} />
       <View style={styles.chips}>
         <Chip label="I borrowed" icon="hand-coin-outline" selected={kind === 'borrowed'} onPress={() => setKind('borrowed')} />
         <Chip label="I lent" icon="hand-coin-outline" selected={kind === 'lent'} onPress={() => setKind('lent')} />

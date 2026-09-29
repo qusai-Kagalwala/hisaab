@@ -1,4 +1,3 @@
-import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -10,6 +9,7 @@ import { formatINR } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { goBack } from '../../utils/nav';
+import { useScreenTitle } from '../../utils/useScreenTitle';
 
 export function BucketDetailScreen({ id }: { id: number }) {
   const p = usePalette();
@@ -63,13 +63,13 @@ function BucketForm({ bucket }: { bucket: BucketStatus }) {
     goBack('/buckets');
   };
 
+  useScreenTitle(bucket.name);
   return (
     <ScrollView
       style={{ backgroundColor: p.background }}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Stack.Screen options={{ title: bucket.name }} />
       <SectionTitle>Name</SectionTitle>
       <TextInput
         value={name}

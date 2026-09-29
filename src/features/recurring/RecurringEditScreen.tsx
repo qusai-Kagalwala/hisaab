@@ -1,4 +1,3 @@
-import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -12,6 +11,7 @@ import type { RecurringRule } from '../../engine/recurring';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { WEEKDAYS } from './schedule';
 import { goBack } from '../../utils/nav';
+import { useScreenTitle } from '../../utils/useScreenTitle';
 
 export function RecurringEditScreen({ id }: { id: number | null }) {
   const db = useSQLiteContext();
@@ -62,13 +62,13 @@ export function RecurringEditScreen({ id }: { id: number | null }) {
     }
   };
 
+  useScreenTitle(existing ? 'Edit' : 'Add bill or income');
   return (
     <ScrollView
       style={{ backgroundColor: p.background }}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Stack.Screen options={{ title: existing ? 'Edit' : 'Add bill or income' }} />
       <View style={styles.chips}>
         <Chip label="Money in" selected={type === 'income'} onPress={() => switchType('income')} />
         <Chip label="Bill to pay" selected={type === 'expense'} onPress={() => switchType('expense')} />
