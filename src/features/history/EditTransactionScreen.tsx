@@ -1,4 +1,3 @@
-import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -14,6 +13,7 @@ import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { dayLabel, timeLabel } from '../../utils/dates';
 import { goBack } from '../../utils/nav';
+import { useScreenTitle } from '../../utils/useScreenTitle';
 
 interface Props {
   id: number;
@@ -25,13 +25,16 @@ interface Props {
  * appending another correction that restores the previous values.
  */
 export function EditTransactionScreen({ id }: Props) {
-  const tx = useLedgerStore((s) => s.transactions.find((t) => t.id === id));
+  const live = useLedgerStore((s) => s.transactions.find((t) => t.id === id));
+  // Show the entry as it was when the screen opened. After Save/Delete the
+  // screen is closing; swapping it to "no longer available" mid-close crashed
+  // react-native-screens on Android.
+  const [tx] = useState(live);
   const p = usePalette();
 
   if (!tx || tx.voided) {
     return (
       <View style={[styles.missing, { backgroundColor: p.background }]}>
-        <Stack.Screen options={{ title: 'Entry' }} />
         <Text style={{ color: p.textMuted }}>This entry is no longer available.</Text>
       </View>
     );
@@ -92,9 +95,9 @@ function TransferEditForm({ tx }: { tx: EffectiveTransaction }) {
     }
   };
 
+  useScreenTitle(title);
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title }} />
       <Text style={[styles.when, { color: p.textMuted }]}>
         {dayLabel(tx.occurred_at)}, {timeLabel(tx.occurred_at)}
       </Text>
@@ -212,13 +215,13 @@ function EditForm({ tx }: { tx: EffectiveTransaction }) {
     }
   };
 
+  useScreenTitle(kind === 'income' ? 'Edit money in' : 'Edit expense');
   return (
     <ScrollView
       style={{ backgroundColor: p.background }}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Stack.Screen options={{ title: kind === 'income' ? 'Edit money in' : 'Edit expense' }} />
       <Text style={[styles.when, { color: p.textMuted }]}>
         {dayLabel(tx.occurred_at)}, {timeLabel(tx.occurred_at)}
       </Text>

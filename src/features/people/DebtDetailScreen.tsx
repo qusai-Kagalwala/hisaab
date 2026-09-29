@@ -1,4 +1,4 @@
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +12,7 @@ import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { dayLabel, shortDate } from '../../utils/dates';
 import { draftFirstDue, draftPlan, PlanEditor, type PlanDraft } from './PlanEditor';
+import { useScreenTitle } from '../../utils/useScreenTitle';
 
 export function DebtDetailScreen({ id }: { id: number }) {
   const debt = useLedgerStore((s) => s.debts.find((d) => d.id === id));
@@ -19,7 +20,6 @@ export function DebtDetailScreen({ id }: { id: number }) {
   if (!debt || debt.entry_ids.length === 0) {
     return (
       <View style={[styles.missing, { backgroundColor: p.background }]}>
-        <Stack.Screen options={{ title: 'Borrow & lend' }} />
         <Text style={{ color: p.textMuted }}>This record is no longer here.</Text>
       </View>
     );
@@ -100,9 +100,9 @@ function Detail({ debt }: { debt: DebtStatus }) {
     ? borrowed ? `All repaid to ${debt.person}` : `${debt.person} paid it all back`
     : borrowed ? `You owe ${debt.person}` : `${debt.person} owes you`;
 
+  useScreenTitle(debt.person);
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: debt.person }} />
       <Card>
         <Text style={{ color: p.textMuted }}>{headline}</Text>
         {!debt.settled && <Text style={[styles.big, { color: p.text }]} numberOfLines={1} adjustsFontSizeToFit>{formatINR(debt.outstanding_paise)}</Text>}
