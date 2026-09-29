@@ -104,7 +104,7 @@ function Body({ state, c }: { state: WidgetState; c: Colors }) {
           ))}
         </FlexWidget>
       ) : (
-        <TextWidget text="Your frequent spends will appear here for one-tap logging." style={{ fontSize: 12, color: c.muted }} />
+        <TextWidget text="Log a spend in the app and it shows up here for one-tap logging." style={{ fontSize: 12, color: c.muted }} />
       )}
     </FlexWidget>
   );

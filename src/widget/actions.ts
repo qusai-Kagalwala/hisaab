@@ -8,6 +8,7 @@ import { ADJUSTMENT_CATEGORY } from '../engine/defaults';
 import { assertPaise, formatINR, type Paise } from '../engine/money';
 import { getSetting, setSetting, addTransaction, undoNewTransaction, SETTING_LAST_ACCOUNT } from '../db/queries';
 import { readSnapshot } from '../db/snapshot';
+import { frequentThenRecent } from '../engine/quickPicks';
 import type { Db } from '../db/types';
 
 export const WIDGET_NAME = 'QuickLog';
@@ -56,7 +57,7 @@ export async function widgetState(db: Db, nowMs: number): Promise<WidgetState> {
   return {
     safe_per_day_paise: snap.safe.per_day_paise,
     has_money: snap.picture.total_paise > 0,
-    picks: snap.quickPicks.slice(0, WIDGET_MAX_PICKS).flatMap((p) => {
+    picks: frequentThenRecent(snap.transactions, nowMs, snap.recurringTxIds, WIDGET_MAX_PICKS).flatMap((p) => {
       const c = snap.categories.find((x) => x.id === p.category_id);
       return c ? [{ category_id: c.id, amount_paise: p.amount_paise, icon: c.icon, name: c.name }] : [];
     }),
