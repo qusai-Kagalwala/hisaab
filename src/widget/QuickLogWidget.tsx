@@ -51,17 +51,17 @@ function Body({ state, c }: { state: WidgetState; c: Colors }) {
         padding: 14, flexDirection: 'column', justifyContent: 'space-between',
       }}
       clickAction="OPEN_APP"
-      accessibilityLabel={`Hisaab. Safe to spend today ${amount}`}
+      accessibilityLabel={state.hidden ? 'Hisaab. Locked' : `Hisaab. Safe to spend today ${amount}`}
     >
       <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <FlexWidget style={{ flexDirection: 'column' }}>
           <TextWidget
-            text={state.last_saved ? state.last_saved.label : 'Safe to spend today'}
-            style={{ fontSize: 12, color: state.last_saved ? c.accent : c.muted }}
+            text={state.hidden ? 'Hisaab' : state.last_saved ? state.last_saved.label : 'Safe to spend today'}
+            style={{ fontSize: 12, color: state.last_saved && !state.hidden ? c.accent : c.muted }}
           />
           <TextWidget
-            text={state.has_money ? amount : 'Add your balance'}
-            style={{ fontSize: state.has_money ? 26 : 16, fontWeight: '700', color: c.text }}
+            text={state.hidden ? 'Locked · tap to open' : state.has_money ? amount : 'Add your balance'}
+            style={{ fontSize: state.has_money && !state.hidden ? 26 : 16, fontWeight: '700', color: c.text }}
           />
         </FlexWidget>
         <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', flexGap: 8 }}>
@@ -103,6 +103,8 @@ function Body({ state, c }: { state: WidgetState; c: Colors }) {
             </FlexWidget>
           ))}
         </FlexWidget>
+      ) : state.hidden ? (
+        <TextWidget text="Amounts are hidden while Hisaab is locked." style={{ fontSize: 12, color: c.muted }} />
       ) : (
         <TextWidget text="Log a spend in the app and it shows up here for one-tap logging." style={{ fontSize: 12, color: c.muted }} />
       )}

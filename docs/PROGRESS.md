@@ -4,7 +4,7 @@ Claude updates this file at the end of every phase.
 Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Current phase
-Phase 6 — Best of budget.io + Hisaabat ✅ (awaiting owner review on the APK)
+Phase 7 — Simpler, safer, more trusted ✅ (awaiting owner review on the APK)
 
 ## Phase 1 — Foundation ✅
 - [x] Expo + TypeScript project setup, lint, Jest
@@ -115,8 +115,22 @@ Notes:
 - [x] Crash-proofing: lock-safe migrations, widget fallback render, root error screen, retry on load failure
 - Version 1.2.0 (versionCode 3)
 
+## Phase 7 — Simpler, safer, more trusted ✅
+- [x] Privacy promise on first launch; pick-your-features (existing users once, pre-ticked); Settings → Features
+- [x] Savings card: add / take out, never spendable
+- [x] Buckets: advanced, off by default, 3-step explainer; template text shows category names (fixed icon-name bug)
+- [x] App lock (fingerprint / face / phone PIN), blank in recents, widget can hide amounts
+- [x] Google backup now really includes the ledger; backup password (AES-256-GCM); weekly protected copy to a chosen folder; restore asks for the password
+- [x] "Hisaab this month" widget
+- [x] Motion: count-up, save tick, card fade-in, private badge (Reduce motion respected)
+- Version 1.3.0 (versionCode 9)
+
+Notes:
+- Not verifiable here: fingerprint prompt, FLAG_SECURE, folder picker, Google backup/restore, the new widget on a launcher — all need the APK.
+
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-10-01 — Phase 7 from tester feedback: privacy-first onboarding, feature picker, Savings, buckets explainer, app lock, real Google backup + protected/weekly backups, month widget, motion; 297 tests, tsc, lint green; Android bundle + prebuild OK; browser run-through passed — next: owner builds 1.3.0.
 - 2026-09-29 — Creator credit (Qusai Kagalwala · Saifee Technologies) on How-it-works, Settings and README; 1.2.5.
 - 2026-09-29 — Tab bar hidden under Android 3-button navigation → tab bar and screens respect the bottom inset; 1.2.4.
 - 2026-09-29 — Crash on consecutive deletes (react-native-screens header update on a closing screen) → titles set only on change, Edit screen frozen; 1.2.3 — next: owner rebuilds from main.

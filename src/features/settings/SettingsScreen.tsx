@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { DATA_NEVER_SENT, DATA_SENT_EXPLAINER } from '../../ai/context';
 import { Icon } from '../../components/Icon';
 import { MIN_TAP, usePalette } from '../../components/theme';
@@ -9,20 +9,28 @@ import { Button, Card, Chip, SectionTitle } from '../../components/ui';
 import { exportAll, importAll } from '../../db/backupQueries';
 import { LATEST_SCHEMA_VERSION } from '../../db/migrations';
 import { parseBackup, type BackupFile, type BackupSummary } from '../../engine/backup';
+import { decryptBackup, isEncryptedBackup } from '../../engine/backupCrypto';
 import { useAiStore, refreshModels } from '../../store/aiStore';
 import { useChatStore } from '../../store/chatStore';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
 import { dayLabel } from '../../utils/dates';
+import { deviceLockAvailable, unlockWithDevice } from '../lock/deviceAuth';
+import { useLockStore } from '../../store/lockStore';
+import { BackupPasswordCard, FolderBackupCard, GoogleBackupCard } from './BackupExtras';
 import { pickBackupText, shareBackup } from './backupFiles';
 import { shareCsv } from './csvFiles';
 
 export function SettingsScreen() {
   const p = usePalette();
+  const showAi = useLedgerStore((s) => s.features.ai);
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <SectionTitle>Features</SectionTitle>
+      <Button label="Choose what Hisaab shows" icon="tune-variant" variant="secondary" compact onPress={() => router.push('/features')} />
+      <SecuritySection />
       <ThemeSection />
-      <AiSection />
+      {showAi && <AiSection />}
       <BackupSection />
       <SpreadsheetSection />
       <SectionTitle>About</SectionTitle>
@@ -33,6 +41,63 @@ export function SettingsScreen() {
       </Text>
       <Text style={{ color: p.textMuted, fontSize: 13 }}>Made by Qusai Kagalwala · Saifee Technologies</Text>
     </ScrollView>
+  );
+}
+
+function SecuritySection() {
+  const db = useSQLiteContext();
+  const p = usePalette();
+  const security = useLedgerStore((s) => s.security);
+  const setSecurity = useLedgerStore((s) => s.setSecurity);
+  const unlock = useLockStore((s) => s.unlock);
+  const [message, setMessage] = useState<string | null>(null);
+  if (Platform.OS === 'web') return null;
+
+  const toggleLock = async (on: boolean) => {
+    setMessage(null);
+    if (on) {
+      if (!(await deviceLockAvailable())) {
+        setMessage('Set up a screen lock (fingerprint or PIN) in your phone settings first.');
+        return;
+      }
+      if (!(await unlockWithDevice())) {
+        setMessage('Not turned on — the check was cancelled.');
+        return;
+      }
+      unlock(); // just verified: don't ask again right away
+    }
+    await setSecurity(db, { appLock: on, hideWidget: on ? true : security.hideWidget });
+  };
+
+  return (
+    <>
+      <SectionTitle>Security</SectionTitle>
+      <Card>
+        <View style={styles.between}>
+          <Icon name="fingerprint" size={24} color={p.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: p.text, fontWeight: '700' }}>Lock Hisaab</Text>
+            <Text style={{ color: p.textMuted, fontSize: 13 }}>
+              Open with your fingerprint, face or phone PIN. Locks again after 1 minute away, and hides Hisaab in
+              recent apps.
+            </Text>
+          </View>
+          <Switch value={security.appLock} onValueChange={toggleLock} />
+        </View>
+        {security.appLock && (
+          <View style={styles.between}>
+            <Icon name="eye-off-outline" size={24} color={p.accent} />
+            <Text style={{ color: p.text, flex: 1 }}>Hide amounts on the home-screen widget</Text>
+            <Switch value={security.hideWidget} onValueChange={(v) => setSecurity(db, { appLock: true, hideWidget: v })} />
+          </View>
+        )}
+        {message && <Text style={{ color: p.text }}>{message}</Text>}
+        <Text style={{ color: p.textMuted, fontSize: 12 }}>
+          Uses your phone&apos;s own lock, so there&apos;s no extra password to forget. Screenshots of Hisaab are blocked
+          while the lock is on.
+        </Text>
+      </Card>
+    </>
   );
 }
 
@@ -264,6 +329,10 @@ function BackupSection() {
   const showUndo = useUndoStore((s) => s.show);
   const [pending, setPending] = useState<{ backup: BackupFile; summary: BackupSummary } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [lockedFile, setLockedFile] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [opening, setOpening] = useState(false);
+  const [passwordSet, setPasswordSet] = useState(false);
 
   const reloadAll = async () => {
     await reloadLedger(db);
@@ -286,9 +355,31 @@ function BackupSection() {
     try {
       const text = await pickBackupText();
       if (text == null) return;
+      if (isEncryptedBackup(text)) {
+        setLockedFile(text);
+        setPassword('');
+        return;
+      }
       setPending(parseBackup(text, LATEST_SCHEMA_VERSION));
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Couldn't read that file.");
+    }
+  };
+
+  const onOpenLocked = async () => {
+    if (!lockedFile) return;
+    setOpening(true);
+    setMessage('Opening… this takes a few seconds.');
+    try {
+      const plain = await decryptBackup(lockedFile, password);
+      setPending(parseBackup(plain, LATEST_SCHEMA_VERSION));
+      setLockedFile(null);
+      setPassword('');
+      setMessage(null);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Couldn't open that backup.");
+    } finally {
+      setOpening(false);
     }
   };
 
@@ -324,6 +415,28 @@ function BackupSection() {
         </View>
         {message && <Text style={{ color: p.text }}>{message}</Text>}
       </Card>
+      {lockedFile && (
+        <Card>
+          <Text style={{ color: p.text, fontWeight: '700' }}>This backup is password-protected</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Backup password"
+            placeholderTextColor={p.textMuted}
+            secureTextEntry
+            autoCapitalize="none"
+            autoFocus
+            style={[styles.input, { color: p.text, borderColor: p.border, backgroundColor: p.surface }]}
+          />
+          <View style={styles.row}>
+            <Button label="Open backup" icon="lock-open-outline" compact disabled={opening || !password} onPress={onOpenLocked} />
+            <Button label="Cancel" variant="plain" compact onPress={() => setLockedFile(null)} />
+          </View>
+        </Card>
+      )}
+      <GoogleBackupCard />
+      <BackupPasswordCard onChange={setPasswordSet} />
+      <FolderBackupCard passwordSet={passwordSet} />
       {pending && (
         <Card>
           <Text style={{ color: p.text, fontWeight: '700' }}>Restore this backup?</Text>

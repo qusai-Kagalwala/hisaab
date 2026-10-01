@@ -3,17 +3,18 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
-import { exportAll } from '../../db/backupQueries';
 import type { Db } from '../../db/types';
 import { backupFileName } from '../../engine/backup';
+import { encryptedFileName } from '../../engine/backupCrypto';
+import { backupText } from './secureBackup';
 
-/** Write a backup and open the share sheet (Drive, WhatsApp, email…). */
+/** Write a backup (password-protected if one is set) and open the share sheet (Drive, WhatsApp, email…). */
 export async function shareBackup(db: Db): Promise<string> {
-  const backup = await exportAll(db);
-  const text = JSON.stringify(backup);
-  const name = backupFileName(backup.exported_at);
+  const { text, encrypted, exportedAt } = await backupText(db);
+  const name = encrypted ? encryptedFileName(exportedAt) : backupFileName(exportedAt);
+  const mime = encrypted ? 'application/octet-stream' : 'application/json';
   if (Platform.OS === 'web') {
-    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([text], { type: mime }));
     const a = document.createElement('a');
     a.href = url;
     a.download = name;
@@ -26,7 +27,7 @@ export async function shareBackup(db: Db): Promise<string> {
   file.create();
   file.write(text);
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Save your Hisaab backup' });
+    await Sharing.shareAsync(file.uri, { mimeType: mime, dialogTitle: 'Save your Hisaab backup' });
   }
   return name;
 }

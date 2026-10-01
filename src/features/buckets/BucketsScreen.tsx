@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Icon, type IconName } from '../../components/Icon';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { Button, Card, ProgressBar, SectionTitle } from '../../components/ui';
 import { BUCKET_TEMPLATES, type TemplateId } from '../../engine/buckets';
@@ -30,6 +31,37 @@ export function BucketsScreen() {
   return <BucketsOverview />;
 }
 
+const EXPLAINER: [IconName, string, string][] = [
+  ['bucket-outline', 'Split your free money', 'Say ₹10,000 is free this month: ₹3,000 to Savings, ₹2,000 to Fun, the rest to Flexible.'],
+  ['cart-outline', 'Spend as usual', 'When you log a spend, it comes out of its bucket by itself — Food comes out of Personal.'],
+  ['eye-outline', 'See what’s left', 'Each bucket shows what’s left. Went over? Cover it from another bucket.'],
+];
+
+/** Buckets in three steps, before anything is set up. */
+function BucketsExplainer() {
+  const p = usePalette();
+  return (
+    <Card>
+      <Text style={[styles.title, { color: p.text }]}>Buckets in 3 steps</Text>
+      {EXPLAINER.map(([icon, title, body], i) => (
+        <View key={title} style={styles.step}>
+          <View style={[styles.stepIcon, { backgroundColor: p.accentSoft }]}>
+            <Icon name={icon} size={22} color={p.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: p.text, fontWeight: '700' }}>{i + 1}. {title}</Text>
+            <Text style={{ color: p.textMuted, fontSize: 13, marginTop: 2 }}>{body}</Text>
+          </View>
+        </View>
+      ))}
+      <Text style={{ color: p.textMuted, fontSize: 12 }}>
+        Optional and for planners. Just want to save? Use Savings on Home instead. Turn Buckets off any time in Settings →
+        Features.
+      </Text>
+    </Card>
+  );
+}
+
 function TemplatePicker() {
   const db = useSQLiteContext();
   const p = usePalette();
@@ -51,10 +83,7 @@ function TemplatePicker() {
 
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content}>
-      <Text style={[styles.lead, { color: p.text }]}>
-        Buckets are a plan for money you haven&apos;t spent yet. They&apos;re optional — skip them and everything
-        still works.
-      </Text>
+      <BucketsExplainer />
       <Text style={{ color: p.textMuted }}>
         You have {formatINR(Math.max(unallocated, 0), { paise: 'never' })} to plan with. Pick a starting point — you
         can change every number and name after.
@@ -74,7 +103,7 @@ function TemplatePicker() {
                 <Text style={{ color: p.textMuted, fontSize: 12 }}>
                   {t.buckets
                     .filter((b) => b.category_ids.length > 0)
-                    .map((b) => `${b.name}: ${b.category_ids.map((id) => categories.find((c) => c.id === id)?.icon ?? '').join('')}`)
+                    .map((b) => `${b.name}: ${b.category_ids.map((id) => categories.find((c) => c.id === id)?.name ?? '').filter(Boolean).join(', ')}`)
                     .join('   ')}
                 </Text>
               )}
@@ -177,7 +206,7 @@ function BucketsOverview() {
             <Text style={{ color: p.textMuted, fontSize: 13, flex: 1 }}>
               Planned {formatINR(b.allocated_paise, { paise: 'never' })} · spent {formatINR(b.spent_paise, { paise: 'never' })}
               {'   '}
-              {b.category_ids.map((id) => categories.find((c) => c.id === id)?.icon ?? '').join(' ')}
+              {b.category_ids.map((id) => categories.find((c) => c.id === id)?.name ?? '').filter(Boolean).join(', ')}
             </Text>
             <Pressable
               onPress={() => onRemove(b.id, b.name)}
@@ -219,6 +248,8 @@ function BucketsOverview() {
 }
 
 const styles = StyleSheet.create({
+  step: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 4 },
+  stepIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', padding: 16 },
   lead: { fontSize: 16, lineHeight: 22 },

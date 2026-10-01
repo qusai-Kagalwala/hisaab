@@ -34,7 +34,7 @@ function tx(partial: Partial<TransactionRow>): TransactionRow {
 
 function checkInvariant(p: MoneyPicture) {
   const inBuckets = addPaise(...p.buckets.map((b) => b.remaining_paise));
-  expect(inBuckets + p.reserved_paise + p.repayments_paise + p.goals_paise + p.unallocated_paise).toBe(p.total_paise);
+  expect(inBuckets + p.reserved_paise + p.repayments_paise + p.savings_paise + p.goals_paise + p.unallocated_paise).toBe(p.total_paise);
 }
 
 describe('computeMoneyPicture', () => {
@@ -91,8 +91,11 @@ describe('computeMoneyPicture', () => {
       const reserved = rand(200_000);
       const goals = rand(300_000);
       const repayments = rand(150_000);
+      const savings = rand(200_000);
       const picture = () =>
-        computeMoneyPicture({ balances, buckets, transactions: txs, reserved_paise: reserved, repayments_paise: repayments, goals_paise: goals });
+        computeMoneyPicture({
+          balances, buckets, transactions: txs, reserved_paise: reserved, repayments_paise: repayments, savings_paise: savings, goals_paise: goals,
+        });
 
       const before = picture();
       checkInvariant(before);
@@ -126,7 +129,7 @@ describe('computeMoneyPicture', () => {
 });
 
 describe('safeToSpend', () => {
-  const base = { total_paise: 0, reserved_paise: 0, repayments_paise: 0, goals_paise: 0, in_buckets_paise: 0, plan_pool_paise: 0 };
+  const base = { total_paise: 0, reserved_paise: 0, repayments_paise: 0, savings_paise: 0, goals_paise: 0, in_buckets_paise: 0, plan_pool_paise: 0 };
   const flexible = { ...bucket({ id: 1, role: 'flexible' }), spent_paise: 0, remaining_paise: 100_000 };
   const lastWeek = new Date(2026, 8, 24).getTime(); // 7 days left in September
 
@@ -237,7 +240,7 @@ describe('explainSafeToSpend', () => {
     const savings = { ...bucket({ id: 2, role: 'savings' as const, allocated_paise: 500_000 }), spent_paise: 0, remaining_paise: 500_000 };
     const fun = { ...bucket({ id: 3, allocated_paise: 50_000 }), spent_paise: 70_000, remaining_paise: -20_000 };
     const picture: MoneyPicture = {
-      total_paise: 3_452_000, reserved_paise: 800_000, repayments_paise: 0, goals_paise: 500_000,
+      total_paise: 3_452_000, reserved_paise: 800_000, repayments_paise: 0, savings_paise: 0, goals_paise: 500_000,
       buckets: [flexible, savings, fun], in_buckets_paise: 580_000, unallocated_paise: 3_452_000 - 800_000 - 500_000 - 580_000, plan_pool_paise: 0,
     };
     const e = explainSafeToSpend(picture, new Date(2026, 8, 28).getTime());

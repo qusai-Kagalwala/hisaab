@@ -9,7 +9,7 @@ const b = (p: Partial<BucketStatus>): BucketStatus => ({
   spent_paise: 0, remaining_paise: 0, ...p,
 });
 const picture = (buckets: BucketStatus[], unallocated: number): MoneyPicture => ({
-  total_paise: 0, reserved_paise: 0, repayments_paise: 0, goals_paise: 0, buckets,
+  total_paise: 0, reserved_paise: 0, repayments_paise: 0, savings_paise: 0, goals_paise: 0, buckets,
   in_buckets_paise: buckets.reduce((a, x) => a + x.remaining_paise, 0), unallocated_paise: unallocated, plan_pool_paise: 0,
 });
 const flexible = b({ id: 9, name: 'Flexible', role: 'flexible', allocated_paise: 100_000, remaining_paise: 100_000 });

@@ -190,6 +190,18 @@ const MIGRATIONS: readonly ((db: Db) => Promise<void>)[] = [
       CREATE INDEX idx_transactions_debt_id ON transactions(debt_id);
     `);
   },
+
+  // 7 — Savings: money set aside (+) or taken back (−). Never counted as spendable.
+  async (db) => {
+    await db.execAsync(`
+      CREATE TABLE savings_moves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount_paise INTEGER NOT NULL CHECK (amount_paise != 0),
+        note TEXT,
+        created_at INTEGER NOT NULL
+      );
+    `);
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS.length;

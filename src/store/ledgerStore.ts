@@ -12,12 +12,16 @@ import {
   setSetting,
   SETTING_BACKUP_SNOOZE,
   SETTING_CAPTURE_MODE,
+  SETTING_FEATURES,
   SETTING_LAST_ACCOUNT,
   SETTING_LAST_BACKUP,
+  SETTING_APP_LOCK,
   SETTING_ONBOARDING_DONE,
   SETTING_THEME,
+  SETTING_WIDGET_HIDE,
   undoNewTransaction,
 } from '../db/queries';
+import { addSavingsMove, undoSavingsMove } from '../db/savingsQueries';
 import { learnMerchant } from '../db/smartQueries';
 import { readSnapshot } from '../db/snapshot';
 import type { Db } from '../db/types';
@@ -25,6 +29,7 @@ import { activeBuckets, bucketForCategory, type MoneyPicture } from '../engine/b
 import { monthKey } from '../engine/calendar';
 import { snoozeUntil } from '../engine/backupNudge';
 import { ADJUSTMENT_CATEGORY } from '../engine/defaults';
+import { DEFAULT_FEATURES } from '../engine/features';
 import { leftoverBuckets, planRollover, rolloverSource, type RolloverChoice } from '../engine/rollover';
 import { useThemeStore } from './themeStore';
 import { accountsActions } from './ledger/accounts';
@@ -37,7 +42,7 @@ import type { LedgerState, RolloverState } from './ledger/types';
 export type { RolloverState } from './ledger/types';
 
 const EMPTY_PICTURE: MoneyPicture = {
-  total_paise: 0, reserved_paise: 0, repayments_paise: 0, goals_paise: 0, buckets: [], in_buckets_paise: 0, unallocated_paise: 0, plan_pool_paise: 0,
+  total_paise: 0, reserved_paise: 0, repayments_paise: 0, savings_paise: 0, goals_paise: 0, buckets: [], in_buckets_paise: 0, unallocated_paise: 0, plan_pool_paise: 0,
 };
 
 /** Hook for side effects after every reload (e.g. refreshing the home-screen widget). */
@@ -67,6 +72,9 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   debts: [],
   theme: 'system',
   backup: { show: false, days_since: null },
+  features: DEFAULT_FEATURES,
+  featuresChosen: true,
+  security: { appLock: false, hideWidget: false },
   merchantMemory: [],
   insights: [],
   quickPicks: [],
@@ -174,6 +182,34 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     });
     await get().load(db);
   },
+  setFeatures: async (db, features) => {
+    const { features: before, picture } = get();
+    await setSetting(db, SETTING_FEATURES, JSON.stringify(features));
+    set({ features, featuresChosen: true });
+    if (before.buckets && !features.buckets && picture.buckets.length > 0) {
+      await get().removeBuckets(db);
+    }
+    await get().load(db);
+  },
+
+  setSecurity: async (db, security) => {
+    await setSetting(db, SETTING_APP_LOCK, security.appLock ? '1' : '0');
+    await setSetting(db, SETTING_WIDGET_HIDE, security.hideWidget ? '1' : '0');
+    await get().load(db); // also refreshes the widget
+  },
+
+  moveSavings: async (db, amount) => {
+    const { picture, safe } = get();
+    if (amount < 0 && -amount > picture.savings_paise) throw new Error('That is more than what is in Savings');
+    if (amount > 0 && amount > Math.max(safe.pool_paise, 0)) throw new Error('That is more than your free money right now');
+    const id = await addSavingsMove(db, amount);
+    await get().load(db);
+    return async () => {
+      await undoSavingsMove(db, id);
+      await get().load(db);
+    };
+  },
+
   markBackedUp: async (db) => {
     await setSetting(db, SETTING_LAST_BACKUP, String(Date.now()));
     await get().load(db);

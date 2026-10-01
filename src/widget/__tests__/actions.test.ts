@@ -4,7 +4,7 @@ import { createBuckets } from '../../db/moneyQueries';
 import { addTransaction, listTransactionRows, setSetting } from '../../db/queries';
 import type { Db } from '../../db/types';
 import { CATEGORY_ID as C } from '../../engine/defaults';
-import { logFromWidget, undoFromWidget, widgetState, WIDGET_UNDO_MS } from '../actions';
+import { logFromWidget, monthWidgetState, undoFromWidget, widgetState, WIDGET_UNDO_MS } from '../actions';
 
 const now = new Date(2026, 8, 28, 10).getTime();
 async function freshDb(): Promise<Db> {
@@ -53,5 +53,40 @@ describe('widget', () => {
     await expect(logFromWidget(db, { category_id: 17, amount_paise: 100 }, now)).rejects.toThrow();
     await expect(logFromWidget(db, { category_id: C.chai, amount_paise: 0 }, now)).rejects.toThrow();
     await expect(logFromWidget(db, { category_id: C.chai, amount_paise: 1.5 }, now)).rejects.toThrow();
+  });
+});
+
+describe('widget while Hisaab is locked', () => {
+  it('shows no amounts or chips when "hide amounts" is on; shows them again when the lock is off', async () => {
+    const db = await freshDb();
+    await addTransaction(db, { type: 'income', account_id: 1, category_id: C.salary, amount_paise: 1_000_000 });
+    await addTransaction(db, { type: 'expense', account_id: 1, category_id: C.chai, amount_paise: 2_000 });
+    await setSetting(db, 'app_lock', '1');
+    await setSetting(db, 'widget_hide_amounts', '1');
+    const locked = await widgetState(db, Date.now());
+    expect(locked).toMatchObject({ hidden: true, safe_per_day_paise: 0, picks: [] });
+    await setSetting(db, 'app_lock', '0');
+    const open = await widgetState(db, Date.now());
+    expect(open.hidden).toBe(false);
+    expect(open.picks.length).toBeGreaterThan(0);
+  });
+});
+
+describe('this-month widget', () => {
+  it('has one bar per day, future days empty, scaled 0–1; hidden while locked', async () => {
+    const db = await freshDb();
+    const now = new Date(2026, 9, 10, 20).getTime();
+    await addTransaction(db, { type: 'income', account_id: 1, category_id: C.salary, amount_paise: 3_100_000, created_at: new Date(2026, 9, 1).getTime() });
+    await addTransaction(db, { type: 'expense', account_id: 1, category_id: C.food, amount_paise: 50_000, created_at: new Date(2026, 9, 3, 13).getTime() });
+    await addTransaction(db, { type: 'expense', account_id: 1, category_id: C.chai, amount_paise: 2_000, created_at: new Date(2026, 9, 10, 9).getTime() });
+    const s = await monthWidgetState(db, now);
+    expect(s.month_name).toBe('October');
+    expect(s.bars).toHaveLength(31);
+    expect(s.bars.slice(10).every((b) => b === null)).toBe(true);
+    expect(s.bars.slice(0, 10).every((b) => b != null && b >= 0 && b <= 1)).toBe(true);
+    expect(s.spent_paise).toBe(52_000);
+    expect(s.today).toBe(10);
+    await setSetting(db, 'app_lock', '1');
+    expect((await monthWidgetState(db, now)).hidden).toBe(true);
   });
 });

@@ -3,10 +3,12 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '../../components/Icon';
 import { BackupCard } from '../../components/BackupCard';
+import { FadeIn } from '../../components/motion';
 import { OverspendCard } from '../../components/OverspendCard';
 import { InsightCard } from '../../components/InsightCard';
 import { PendingCard } from '../../components/PendingCard';
 import { RepaymentCard } from '../../components/RepaymentCard';
+import { SavingsCard } from '../../components/SavingsCard';
 import { SafeToSpendHero } from '../../components/SafeToSpendHero';
 import { WeeklyCard } from '../../components/WeeklyCard';
 import { usePalette } from '../../components/theme';
@@ -29,6 +31,7 @@ export function HomeScreen() {
   const goals = useLedgerStore((s) => s.goals);
   const activeGoals = goals.filter((g) => g.status === 'active');
   const bucketsOff = useLedgerStore((s) => s.bucketsOff);
+  const f = useLedgerStore((s) => s.features);
   const debts = useLedgerStore((s) => s.debts);
   const transactions = useLedgerStore((s) => s.transactions);
   const excluded = useLedgerStore((s) => s.recurringTxIds);
@@ -40,23 +43,44 @@ export function HomeScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content}>
-      <SafeToSpendHero />
+      <Pressable
+        onPress={() => router.push({ pathname: '/about', params: { section: 'privacy' } })}
+        accessibilityRole="button"
+        accessibilityLabel="Private: your data is stored only on this phone"
+        style={[styles.private, { backgroundColor: p.accentSoft }]}
+      >
+        <Icon name="shield-check" size={14} color={p.accent} />
+        <Text style={{ color: p.accent, fontSize: 12, fontWeight: '700' }}>Private · stored only on this phone</Text>
+      </Pressable>
+      <FadeIn>
+        <SafeToSpendHero />
+      </FadeIn>
       {!hasEntries && (
         <Pressable onPress={() => router.push('/about')} accessibilityRole="link" style={{ alignSelf: 'center' }}>
           <Text style={{ color: p.accent, fontWeight: '600' }}>New here? See how Hisaab works ›</Text>
         </Pressable>
       )}
 
+      <FadeIn delay={80} style={{ gap: 12 }}>
       <View style={styles.quickRow}>
         <Button label="Can I afford?" icon="scale" variant="secondary" compact onPress={() => router.push('/afford')} style={styles.flex} />
         <Button label="Ask Hisaab" icon="message-text-outline" variant="secondary" compact onPress={() => router.push('/chat')} style={styles.flex} />
       </View>
       <View style={styles.quickRow}>
-        <Button label="Borrow & lend" icon="hand-coin-outline" variant="secondary" compact onPress={() => router.push('/people')} style={styles.flex} />
+        {f.people && (
+          <Button label="Borrow & lend" icon="hand-coin-outline" variant="secondary" compact onPress={() => router.push('/people')} style={styles.flex} />
+        )}
         <Button label="Move money" icon="swap-horizontal" variant="secondary" compact onPress={() => router.push('/transfer')} style={styles.flex} />
       </View>
+      </FadeIn>
 
-      <WeeklyCard />
+      {(f.savings || picture.savings_paise > 0) && (
+        <FadeIn delay={160}>
+          <SavingsCard />
+        </FadeIn>
+      )}
+
+      {f.ai && <WeeklyCard />}
 
       {!hasEntries && (
         <Card>
@@ -90,7 +114,7 @@ export function HomeScreen() {
 
       <BackupCard />
 
-      {insights.map((i) => (
+      {f.insights && insights.map((i) => (
         <InsightCard key={i.id} insight={i} />
       ))}
 
@@ -104,7 +128,7 @@ export function HomeScreen() {
         </Card>
       )}
 
-      {!hasBuckets && !rollover && !bucketsOff && hasEntries && picture.unallocated_paise > 0 && (
+      {f.buckets && !hasBuckets && !rollover && !bucketsOff && hasEntries && picture.unallocated_paise > 0 && (
         <Card>
           <Text style={[styles.cardTitle, { color: p.text }]}>
             You have {formatINR(picture.unallocated_paise, { paise: 'never' })} unallocated
@@ -138,6 +162,7 @@ export function HomeScreen() {
         </>
       )}
 
+      {(f.goals || activeGoals.length > 0) && (<>
       <SectionTitle>Goals</SectionTitle>
       {activeGoals.length === 0 ? (
         <Pressable onPress={() => router.push('/goals')} accessibilityRole="button">
@@ -166,6 +191,7 @@ export function HomeScreen() {
           </Pressable>
         ))
       )}
+      </>)}
 
       {(people.you_owe_paise > 0 || people.owed_to_you_paise > 0) && (
         <Pressable onPress={() => router.push('/people')} accessibilityRole="button">
@@ -187,6 +213,7 @@ export function HomeScreen() {
         <Row label="In your accounts" value={formatINR(picture.total_paise)} />
         <Row label="Kept for bills" value={formatINR(picture.reserved_paise)} />
         {picture.repayments_paise > 0 && <Row label="Kept for repayments" value={formatINR(picture.repayments_paise)} />}
+        {picture.savings_paise > 0 && <Row label="In Savings" value={formatINR(picture.savings_paise)} />}
         {hasBuckets && <Row label="In buckets" value={formatINR(picture.in_buckets_paise)} />}
         {picture.goals_paise > 0 && <Row label="Set aside in goals" value={formatINR(picture.goals_paise)} />}
         <Row
@@ -195,7 +222,7 @@ export function HomeScreen() {
         />
       </Card>
 
-      {stats.in_paise > 0 && (
+      {f.insights && stats.in_paise > 0 && (
         <Pressable onPress={() => router.navigate('/insights')} accessibilityRole="button">
           <Card style={styles.peopleCard}>
             <Icon name="chart-box-outline" size={22} color={p.accent} />
@@ -211,7 +238,9 @@ export function HomeScreen() {
 
       <View style={styles.links}>
         <Button label="Accounts" icon="wallet-outline" variant="plain" compact onPress={() => router.push('/accounts')} />
-        <Button label="Bills & income" icon="calendar-sync" variant="plain" compact onPress={() => router.push('/recurring')} />
+        {f.bills && (
+          <Button label="Bills & income" icon="calendar-sync" variant="plain" compact onPress={() => router.push('/recurring')} />
+        )}
       </View>
     </ScrollView>
   );
@@ -239,4 +268,5 @@ const styles = StyleSheet.create({
   rowValue: { fontWeight: '600', fontVariant: ['tabular-nums'] },
   links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
   peopleCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  private: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999 },
 });

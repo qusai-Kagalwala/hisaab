@@ -12,6 +12,7 @@ export default function TabsLayout() {
   const p = usePalette();
   // Room for Android's own navigation (3-button bar or gesture line) below the tabs.
   const insets = useSafeAreaInsets();
+  const showInsights = useLedgerStore((s) => s.features.insights);
   const attention = useLedgerStore((s) => s.pending.length + (s.rollover ? 1 : 0) + s.debts.filter((d) => d.due_now_paise > 0).length);
   const icon = (outline: IconName, filled: IconName) =>
     function TabIcon({ focused, color }: { focused: boolean; color: ColorValue }) {
@@ -68,7 +69,10 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: icon('chart-box-outline', 'chart-box') }} />
+      <Tabs.Screen
+        name="insights"
+        options={{ title: 'Insights', tabBarIcon: icon('chart-box-outline', 'chart-box'), href: showInsights ? undefined : null }}
+      />
       <Tabs.Screen
         name="more"
         options={{ title: 'More', tabBarIcon: icon('dots-horizontal-circle-outline', 'dots-horizontal-circle') }}

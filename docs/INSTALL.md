@@ -68,7 +68,10 @@ Expo Go and the installed app keep **separate** data. Move it with a backup:
    - Tap **+** → the app opens on the keypad.
    - Tap anywhere else → the app opens.
 
-The chips appear once you've logged the same thing a couple of times.
+The chips show your frequent and recent spends.
+
+There's a second widget too: **Hisaab this month** — spent so far, safe to spend today
+and a day-by-day chart. Tap it to open Insights.
 
 ## 6. Updating the app later
 
@@ -86,8 +89,11 @@ The chips appear once you've logged the same thing a couple of times.
 > Very old 32-bit phone and the APK won't install? Remove the `env` block from
 > the `preview` profile in `eas.json` and build again (bigger, but runs everywhere).
 
-⚠️ **Uninstalling the app deletes its data.** Export a backup first, and export
-one now and then anyway.
+⚠️ **Uninstalling the app deletes its data on the phone.** Three things protect you:
+1. **Google backup** (automatic): keep phone Settings → Google → Backup on. Reinstalling
+   with the same Google account brings your hisaab back.
+2. **Backup password** (Settings → Backup): protects every backup file.
+3. **Weekly copy to a folder** you choose, and **Back up now** to save a copy to Drive.
 
 ---
 

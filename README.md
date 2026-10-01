@@ -20,12 +20,16 @@
 | **Safe to spend today** | One number: what you can spend today and still be fine for the month — with a step-by-step “how is this worked out?”. |
 | **Bills & income** | Rent, salary, recharges. On the day: “Expected ₹X — received?” Nothing is ever added without your tap. |
 | **Buckets (optional)** | Plan the month like envelopes: Savings, Personal, Fun, Flexible… Cover overspends, roll leftovers over. |
+| **Savings** | Put money aside with one tap — it's never counted as spendable. |
 | **Goals** | Save up for something; see when you'll get there and how a bit more each month changes it. |
 | **Borrow & lend** | Borrowed or lent money isn't spending or income. Borrowed money gets a **no-interest repayment plan** (by months or amount per month) and each month's payment is kept aside. |
 | **Move money** | Bank → Cash and back, without it counting as spending. Add or remove accounts any time. |
 | **History & Insights** | Search and filter everything; browse months with money in/out, % saved, biggest days and category charts. |
 | **Ask Hisaab** | Questions in English, Hindi or Hinglish — answered from your own numbers, offline. Optional Gemini AI makes answers friendlier. |
 | **Backup, CSV, import** | JSON backup/restore, spreadsheet export, and an optional reviewed import (pasted text or CSV). |
+| **Only what you need** | Pick your features on first launch; change them any time. |
+| **Lock & backups** | Fingerprint / phone-PIN lock, Google backup, password-protected backups and a weekly copy. |
+| **Two widgets** | One-tap logging, and "this month" with a day-by-day chart. |
 | **Light & dark** | Follows your phone, or pick one. |
 
 ## Principles
@@ -56,7 +60,7 @@ docs/         SPEC, PROGRESS, DECISIONS, INSTALL
 ```bash
 npm install
 npm run dev          # Expo Go over a tunnel (scan the QR code)
-npm test             # 280 unit tests
+npm test             # ~300 unit tests
 npm run typecheck
 npm run lint
 ```

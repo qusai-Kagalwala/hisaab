@@ -9,6 +9,8 @@ import { assertPaise, formatINR, type Paise } from '../engine/money';
 import { getSetting, setSetting, addTransaction, undoNewTransaction, SETTING_LAST_ACCOUNT } from '../db/queries';
 import { readSnapshot } from '../db/snapshot';
 import { frequentThenRecent } from '../engine/quickPicks';
+import { daysInMonth, monthName } from '../engine/calendar';
+import { dailySpending, monthStats } from '../engine/charts';
 import type { Db } from '../db/types';
 
 export const WIDGET_NAME = 'QuickLog';
@@ -28,12 +30,14 @@ export interface WidgetState {
   safe_per_day_paise: Paise;
   has_money: boolean;
   picks: WidgetPick[];
+  /** App lock on with "hide amounts": show no money and no chips. */
+  hidden: boolean;
   /** Shown as "Saved ₹20 · Chai — Undo" right after a widget tap. */
   last_saved: { id: number; label: string } | null;
 }
 
 /** Shown if the data can't be read for any reason; + and tapping still open the app. */
-export const EMPTY_WIDGET_STATE: WidgetState = { safe_per_day_paise: 0, has_money: false, picks: [], last_saved: null };
+export const EMPTY_WIDGET_STATE: WidgetState = { safe_per_day_paise: 0, has_money: false, picks: [], last_saved: null, hidden: false };
 
 interface LastSaved {
   id: number;
@@ -54,7 +58,9 @@ async function readLast(db: Db): Promise<LastSaved | null> {
 export async function widgetState(db: Db, nowMs: number): Promise<WidgetState> {
   const snap = await readSnapshot(db, nowMs);
   const last = await readLast(db);
+  if (snap.security.hideWidget) return { ...EMPTY_WIDGET_STATE, hidden: true };
   return {
+    hidden: false,
     safe_per_day_paise: snap.safe.per_day_paise,
     has_money: snap.picture.total_paise > 0,
     picks: frequentThenRecent(snap.transactions, nowMs, snap.recurringTxIds, WIDGET_MAX_PICKS).flatMap((p) => {
@@ -100,4 +106,44 @@ export async function undoFromWidget(db: Db, nowMs: number): Promise<boolean> {
   await setSetting(db, SETTING_WIDGET_LAST, '');
   if (!last || nowMs - last.at >= WIDGET_UNDO_MS) return false;
   return undoNewTransaction(db, last.id);
+}
+
+
+// ---------------------------------------------------------------------------
+// "This month" widget
+// ---------------------------------------------------------------------------
+
+export const MONTH_WIDGET_NAME = 'MonthChart';
+
+export interface MonthWidgetState {
+  hidden: boolean;
+  month_name: string;
+  /** Everyday spending so far this month. */
+  spent_paise: Paise;
+  safe_per_day_paise: Paise;
+  has_money: boolean;
+  /** One entry per day of the month; future days are null. Bar heights are 0–1. */
+  bars: (number | null)[];
+  today: number;
+}
+
+export async function monthWidgetState(db: Db, nowMs: number): Promise<MonthWidgetState> {
+  const snap = await readSnapshot(db, nowMs);
+  const d = new Date(nowMs);
+  const total = daysInMonth(d.getFullYear(), d.getMonth());
+  const base = { month_name: monthName(snap.month), today: d.getDate() };
+  if (snap.security.hideWidget) {
+    return { ...base, hidden: true, spent_paise: 0, safe_per_day_paise: 0, has_money: false, bars: Array(total).fill(null) };
+  }
+  const days = dailySpending(snap.transactions, nowMs, snap.recurringTxIds);
+  const max = Math.max(1, snap.safe.per_day_paise, ...days.map((x) => x.paise));
+  const stats = monthStats(snap.transactions, snap.month, nowMs, snap.recurringTxIds);
+  return {
+    ...base,
+    hidden: false,
+    spent_paise: stats.everyday_paise,
+    safe_per_day_paise: snap.safe.per_day_paise,
+    has_money: snap.picture.total_paise > 0,
+    bars: Array.from({ length: total }, (_, i) => (i < days.length ? days[i].paise / max : null)),
+  };
 }

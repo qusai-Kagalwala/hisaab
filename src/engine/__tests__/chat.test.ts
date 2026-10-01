@@ -6,7 +6,7 @@ import type { GoalStatus } from '../goals';
 const now = new Date(2026, 8, 21, 12).getTime();
 const fun: BucketStatus = { id: 2, name: 'Entertainment', period_month: '2026-09', allocated_paise: 300_000, role: null, sort_order: 0, category_ids: [C.entertainment], spent_paise: 45_000, remaining_paise: 255_000 };
 const flexible: BucketStatus = { ...fun, id: 9, name: 'Flexible', role: 'flexible', category_ids: [], spent_paise: 0, allocated_paise: 100_000, remaining_paise: 100_000 };
-const picture: MoneyPicture = { total_paise: 3_000_000, reserved_paise: 800_000, repayments_paise: 0, goals_paise: 500_000, buckets: [fun, flexible], in_buckets_paise: 355_000, unallocated_paise: 1_345_000, plan_pool_paise: 0 };
+const picture: MoneyPicture = { total_paise: 3_000_000, reserved_paise: 800_000, repayments_paise: 0, savings_paise: 0, goals_paise: 500_000, buckets: [fun, flexible], in_buckets_paise: 355_000, unallocated_paise: 1_345_000, plan_pool_paise: 0 };
 const laptop = { id: 1, name: 'Laptop', status: 'active', saved_paise: 500_000, target_paise: 8_000_000, remaining_paise: 7_500_000, pace_paise: 1_500_000, eta_month: '2027-02' } as GoalStatus;
 
 const ctx: ChatContext = {

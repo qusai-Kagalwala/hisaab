@@ -19,6 +19,7 @@ export const BACKUP_TABLES = [
   'pending_recurring',
   'goals',
   'goal_contributions',
+  'savings_moves',
   'merchant_memory',
   'chat_history',
   'settings',
@@ -43,6 +44,7 @@ const MONEY_COLUMNS: Partial<Record<BackupTable, string[]>> = {
   goals: ['target_paise'],
   goal_contributions: ['amount_paise'],
   debts: ['per_month_paise'],
+  savings_moves: ['amount_paise'],
 };
 
 /** Money columns that may be empty. */

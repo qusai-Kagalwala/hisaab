@@ -16,6 +16,7 @@ import { AccountChips } from '../../components/AccountChips';
 import { CategoryGrid } from '../../components/CategoryGrid';
 import { CategoryIcon, Icon } from '../../components/Icon';
 import { Keypad } from '../../components/Keypad';
+import { SaveCheck } from '../../components/motion';
 import { OverspendCard } from '../../components/OverspendCard';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { guessCategory } from '../../engine/categoryGuess';
@@ -70,6 +71,8 @@ export function CaptureScreen() {
   const [hint, setHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [moreWays, setMoreWays] = useState(false);
+  const [savedPulse, setSavedPulse] = useState(0);
+  const showPeople = useLedgerStore((s) => s.features.people);
   // In-app mic (APK only); the keyboard's own mic works everywhere.
   const [canListen] = useState(voiceAvailable);
   const [listening, setListening] = useState<Listening | null>(null);
@@ -131,6 +134,7 @@ export function CaptureScreen() {
         { learn },
       );
       savedTap();
+      setSavedPulse((n) => n + 1);
       const amountText = formatINR(amount, { signed: type === 'income' });
       showUndo(`${verb ?? (type === 'income' ? 'Added' : 'Saved')} ${amountText} · ${category.name}`, async () => {
         await undoNew(db, id);
@@ -245,7 +249,7 @@ export function CaptureScreen() {
         style={[styles.navButton, moreWays && { backgroundColor: p.accentSoft }]}
         accessibilityRole="button"
         accessibilityState={{ expanded: moreWays }}
-        accessibilityLabel="Move money, borrowed or lent"
+        accessibilityLabel={showPeople ? 'Move money, borrowed or lent' : 'Move money between accounts'}
       >
         <Icon name="swap-horizontal" size={24} color={moreWays ? p.accent : p.textMuted} />
       </Pressable>
@@ -257,8 +261,10 @@ export function CaptureScreen() {
     <View style={styles.moreRow}>
       {([
         { label: 'Move money', icon: 'swap-horizontal', go: () => router.push('/transfer') },
-        { label: 'I borrowed', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'borrowed' } }) },
-        { label: 'I lent', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'lent' } }) },
+        ...(showPeople ? [
+          { label: 'I borrowed', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'borrowed' } }) },
+          { label: 'I lent', icon: 'hand-coin-outline', go: () => router.push({ pathname: '/people/new', params: { kind: 'lent' } }) },
+        ] as const : []),
       ] as const).map((w) => (
         <Pressable
           key={w.label}
@@ -334,6 +340,7 @@ export function CaptureScreen() {
             </Pressable>
           )}
           </View>
+          <SaveCheck pulse={savedPulse} />
           <View style={styles.previewRow}>
             <Text style={[styles.preview, { color: text ? p.text : p.textMuted }]} numberOfLines={2}>
               {hint ?? (text ? preview || 'Add an amount…' : canListen ? 'Tip: tap the mic to speak it' : 'Tip: tap the mic on your keyboard to speak it')}
@@ -373,6 +380,7 @@ export function CaptureScreen() {
           {hint ?? (kind === 'expense' ? 'Type amount, then tap a category' : 'Type amount, then tap where it came from')}
         </Text>
         <View style={styles.toggleRow}>{modeToggle}</View>
+        <SaveCheck pulse={savedPulse} />
       </Pressable>
 
       <View style={styles.bottom}>

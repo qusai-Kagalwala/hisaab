@@ -209,6 +209,12 @@ export const SETTING_BUCKETS_OFF = 'buckets_off';
 export const SETTING_LAST_BACKUP = 'last_backup_at';
 /** Epoch ms until which the backup reminder stays hidden. */
 export const SETTING_BACKUP_SNOOZE = 'backup_snooze_until';
+/** '1' = ask for fingerprint / phone PIN to open Hisaab. */
+export const SETTING_APP_LOCK = 'app_lock';
+/** '1' = the home-screen widget shows no amounts while the app lock is on. */
+export const SETTING_WIDGET_HIDE = 'widget_hide_amounts';
+/** JSON of the features the user picked (see engine/features). Missing = not chosen yet. */
+export const SETTING_FEATURES = 'features';
 /** 'system' (default), 'light' or 'dark'. */
 export const SETTING_THEME = 'theme';
 /** 'keypad' (default) or 'text' — how the capture screen opens. */
