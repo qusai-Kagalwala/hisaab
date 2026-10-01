@@ -6,7 +6,7 @@
 import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
 import type { Db } from '../db/types';
 import { setOnLedgerChanged } from '../store/ledgerStore';
-import { WIDGET_NAME, widgetState } from './actions';
+import { MONTH_WIDGET_NAME, monthWidgetState, WIDGET_NAME, widgetState } from './actions';
 
 export function widgetsAvailable(): boolean {
   if (Platform.OS !== 'android') return false;
@@ -23,6 +23,7 @@ export function registerWidget(): void {
   const lib = require('react-native-android-widget') as typeof import('react-native-android-widget');
   const { widgetTaskHandler } = require('./taskHandler') as typeof import('./taskHandler');
   const { quickLogWidget } = require('./QuickLogWidget') as typeof import('./QuickLogWidget');
+  const { monthWidget } = require('./MonthWidget') as typeof import('./MonthWidget');
   /* eslint-enable @typescript-eslint/no-require-imports */
   lib.registerWidgetTaskHandler(widgetTaskHandler);
 
@@ -32,6 +33,12 @@ export function registerWidget(): void {
       .requestWidgetUpdate({
         widgetName: WIDGET_NAME,
         renderWidget: async () => quickLogWidget(await widgetState(db, Date.now())),
+      })
+      .catch(() => undefined);
+    void lib
+      .requestWidgetUpdate({
+        widgetName: MONTH_WIDGET_NAME,
+        renderWidget: async () => monthWidget(await monthWidgetState(db, Date.now())),
       })
       .catch(() => undefined);
   });

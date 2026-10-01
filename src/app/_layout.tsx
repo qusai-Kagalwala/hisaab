@@ -9,6 +9,8 @@ import { usePalette } from '../components/theme';
 import { UndoToast } from '../components/UndoToast';
 import { migrate } from '../db/migrations';
 import { DATABASE_NAME } from '../db/name';
+import { LockGate } from '../features/lock/LockGate';
+import { maybeAutoBackup } from '../features/settings/secureBackup';
 import { useAiStore } from '../store/aiStore';
 import { useLedgerStore } from '../store/ledgerStore';
 
@@ -46,7 +48,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrate}>
         <LedgerLoader>
-          <AppStack />
+          <LockGate>
+            <AppStack />
+          </LockGate>
         </LedgerLoader>
       </SQLiteProvider>
     </SafeAreaProvider>
@@ -67,12 +71,20 @@ function LedgerLoader({ children }: { children: ReactNode }) {
       SplashScreen.hideAsync().catch(() => undefined);
     });
     loadAi(db).catch(() => undefined);
+    // Weekly protected copy to the chosen folder, a few seconds after opening.
+    const backupTimer = setTimeout(() => void maybeAutoBackup(db).catch(() => undefined), 4000);
     // Coming back to the app may be a new day or month: due bills, rollover,
     // safe-to-spend all depend on the date.
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') load(db).catch(() => undefined);
+      if (state === 'active') {
+        load(db).catch(() => undefined);
+        void maybeAutoBackup(db).catch(() => undefined);
+      }
     });
-    return () => sub.remove();
+    return () => {
+      sub.remove();
+      clearTimeout(backupTimer);
+    };
   }, [db, load, loadAi]);
 
   if (!loaded) {
@@ -164,6 +176,7 @@ function AppStack() {
         <Stack.Screen name="people/new" options={{ title: 'Borrowed or lent' }} />
         <Stack.Screen name="people/[id]" options={{ title: 'Details' }} />
         <Stack.Screen name="import" options={{ title: 'Import entries' }} />
+        <Stack.Screen name="features" options={{ title: 'Features', gestureEnabled: false }} />
         <Stack.Screen name="buckets/index" options={{ title: 'Buckets' }} />
         <Stack.Screen name="buckets/plan" options={{ title: 'Plan your month' }} />
         <Stack.Screen name="buckets/move" options={{ title: 'Move money' }} />

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { explainSafeToSpend } from '../engine/buckets';
 import { formatINR } from '../engine/money';
 import { useLedgerStore } from '../store/ledgerStore';
+import { useCountUp } from './motion';
 import { usePalette } from './theme';
 import { Card } from './ui';
 
@@ -21,6 +22,7 @@ export function SafeToSpendHero() {
   end.setDate(end.getDate() + e.days_left - 1);
   const endLabel = `${end.getDate()} ${MONTHS[end.getMonth()]}`;
   const over = e.pool_paise < 0;
+  const shown = useCountUp(e.per_day_paise);
   // Nothing planned and no money recorded yet: the real issue is a missing balance.
   const noBalance =
     picture.total_paise <= 0 && picture.reserved_paise === 0 && picture.goals_paise === 0 && picture.buckets.length === 0;
@@ -29,8 +31,13 @@ export function SafeToSpendHero() {
     <View>
       <View style={styles.hero}>
         <Text style={[styles.label, { color: p.textMuted }]}>Safe to spend today</Text>
-        <Text style={[styles.amount, { color: p.text }]} numberOfLines={1} adjustsFontSizeToFit>
-          {fmt(e.per_day_paise)}
+        <Text
+          style={[styles.amount, { color: p.text }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          accessibilityLabel={`Safe to spend today ${fmt(e.per_day_paise)}`}
+        >
+          {fmt(shown)}
         </Text>
         <Text style={[styles.sub, { color: p.textMuted }]}>
           {noBalance

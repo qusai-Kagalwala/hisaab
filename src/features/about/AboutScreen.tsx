@@ -109,6 +109,17 @@ function sections(): Section[] {
       ),
     },
     {
+      id: 'savings',
+      icon: 'piggy-bank-outline',
+      title: 'Savings — money you won’t spend by mistake',
+      body: (
+        <>
+          <P>On Home, tap Add to savings and enter an amount. That money is kept aside: it&apos;s still yours and still in your accounts, but “safe to spend” never counts it.</P>
+          <P>Need it back? Tap Take out. Saving up for something specific? Turn on Goals in Settings → Features.</P>
+        </>
+      ),
+    },
+    {
       id: 'people',
       icon: 'hand-coin-outline',
       title: 'Moving money, borrowing and lending',
@@ -193,11 +204,25 @@ function sections(): Section[] {
       ),
     },
     {
+      id: 'security',
+      icon: 'fingerprint',
+      title: 'Lock and backups',
+      body: (
+        <>
+          <P>Lock: Settings → Security → Lock Hisaab. It opens with your fingerprint, face or phone PIN, locks again after a minute away, and is hidden in recent apps. You can also hide amounts on the widget.</P>
+          <P>Google backup: Android copies Hisaab to your own Google account about once a day (phone charging, on Wi-Fi) and restores it when you reinstall or set up a new phone. Check it&apos;s on in phone Settings → Google → Backup.</P>
+          <P>Backup password: protects every backup file, so only you can open it. Write it down — it can&apos;t be recovered.</P>
+          <P>Weekly copy: choose a folder once and Hisaab saves a protected copy there every week when you open it.</P>
+          <Tip>Lost phone? Install Hisaab on the new one with the same Google account — or restore your latest backup file with your backup password.</Tip>
+        </>
+      ),
+    },
+    {
       id: 'privacy',
       icon: 'shield-lock-outline',
       title: 'Privacy',
       body: (
-        <P>No login, no server, no bank or SMS access, no ads, no tracking. Hisaab only knows what you type or choose to import. AI is off unless you add your own key.</P>
+        <P>Your data is stored only on your phone. No login, no server, no bank or SMS access, no ads, no tracking — not even the developer can see your entries. Hisaab only knows what you type or choose to import. AI is off unless you add your own key, and then only the few totals a question needs are sent.</P>
       ),
     },
   ];

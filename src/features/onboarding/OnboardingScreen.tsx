@@ -3,18 +3,25 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Icon, type IconName } from '../../components/Icon';
+import { FeaturePicker } from '../../components/FeaturePicker';
+import { type IconName } from '../../components/Icon';
 import { Logo } from '../../components/Logo';
+import { PrivacyPromise } from '../../components/PrivacyPromise';
 import { usePalette } from '../../components/theme';
 import { Button, Card, Chip, MoneyField } from '../../components/ui';
 import { setSetting, SETTING_BUCKETS_OFF } from '../../db/queries';
 import { BUCKET_TEMPLATES, type TemplateId } from '../../engine/buckets';
 import { CATEGORY_ID } from '../../engine/defaults';
+import { DEFAULT_FEATURES, type Features } from '../../engine/features';
 import { formatINR, inputToPaise } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
 
-type Step = 'welcome' | 'balances' | 'income' | 'bills' | 'buckets';
-const ORDER: Step[] = ['welcome', 'balances', 'income', 'bills', 'buckets'];
+type Step = 'welcome' | 'features' | 'balances' | 'income' | 'bills' | 'buckets';
+
+/** Only ask about what the user chose to use. */
+function stepsFor(f: Features): Step[] {
+  return ['welcome', 'features', 'balances', ...(f.bills ? (['income', 'bills'] as Step[]) : []), ...(f.buckets ? (['buckets'] as Step[]) : [])];
+}
 
 const INCOME_KINDS: { id: string; label: string; icon: IconName; category: number }[] = [
   { id: 'salary', label: 'Salary', icon: 'briefcase', category: CATEGORY_ID.salary },
@@ -52,6 +59,9 @@ export function OnboardingScreen() {
   const setupBuckets = useLedgerStore((s) => s.setupBuckets);
   const finish = useLedgerStore((s) => s.finishOnboarding);
   const load = useLedgerStore((s) => s.load);
+  const setFeatures = useLedgerStore((s) => s.setFeatures);
+  const [features, setDraft] = useState<Features>(DEFAULT_FEATURES);
+  const ORDER = stepsFor(features);
 
   const [step, setStep] = useState<Step>('welcome');
   const [cash, setCash] = useState('');
@@ -65,9 +75,14 @@ export function OnboardingScreen() {
 
   const cashAccount = accounts.find((a) => a.type === 'cash');
   const bankAccount = accounts.find((a) => a.type === 'upi_bank');
-  const next = () => setStep(ORDER[Math.min(ORDER.indexOf(step) + 1, ORDER.length - 1)]);
+  const next = () => {
+    const i = ORDER.indexOf(step);
+    if (i >= ORDER.length - 1) void done();
+    else setStep(ORDER[i + 1]);
+  };
 
   const done = async () => {
+    await setFeatures(db, features);
     await finish(db);
     await load(db);
     router.replace('/');
@@ -159,25 +174,21 @@ export function OnboardingScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {step === 'welcome' && (
           <View style={styles.welcome}>
-            <Logo size={88} />
+            <Logo size={72} />
             <Text style={[styles.brand, { color: p.text }]}>Hisaab</Text>
-            <Text style={{ color: p.textMuted, fontSize: 16 }}>Log it as fast as you pay it.</Text>
-            <View style={styles.points}>
-              {([
-                ['lightning-bolt-outline', 'Log a spend in 3 taps'],
-                ['calendar-today', 'Know what’s safe to spend today'],
-                ['hand-coin-outline', 'Track borrowing and lending, with simple repayment plans'],
-                ['shield-lock-outline', 'Private: stays on your phone, no login'],
-              ] as [IconName, string][]).map(([icon, text]) => (
-                <View key={text} style={styles.point}>
-                  <Icon name={icon} size={22} color={p.accent} />
-                  <Text style={{ color: p.text, fontSize: 15, flex: 1 }}>{text}</Text>
-                </View>
-              ))}
-            </View>
-            <Button label="Set up in 1 minute" onPress={next} style={{ alignSelf: 'stretch' }} />
+            <Text style={{ color: p.textMuted, fontSize: 16, marginBottom: 12 }}>Log it as fast as you pay it.</Text>
+            <PrivacyPromise />
+            <Button label="Get started" onPress={next} style={{ alignSelf: 'stretch', marginTop: 12 }} />
             <Button label="Skip — start logging" variant="plain" onPress={done} />
           </View>
+        )}
+
+        {step === 'features' && (
+          <>
+            {header('What would you like to use?', 'Pick only what helps you. You can turn things on or off later.')}
+            <FeaturePicker value={features} onChange={setDraft} />
+            <Button label="Next" onPress={next} />
+          </>
         )}
 
         {step === 'balances' && (
@@ -281,8 +292,6 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   welcome: { alignItems: 'center', gap: 12, paddingTop: 24 },
   brand: { fontSize: 30, fontWeight: '800' },
-  points: { alignSelf: 'stretch', gap: 14, marginVertical: 20 },
-  point: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dots: { flexDirection: 'row', gap: 6 },
   dot: { flex: 1, height: 4, borderRadius: 2 },
   title: { fontSize: 22, fontWeight: '800' },

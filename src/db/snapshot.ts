@@ -14,6 +14,7 @@ import {
   type SafeToSpend,
 } from '../engine/buckets';
 import { monthKey, monthStartMs, shiftMonth, type MonthKey } from '../engine/calendar';
+import { readFeatures, type Features } from '../engine/features';
 import { debtStatus, repaymentsThisMonth, type DebtStatus } from '../engine/debts';
 import { goalStatus, setAsideForGoals, type GoalStatus } from '../engine/goals';
 import { computeInsights, everydayExpenses, spendingByCategory, type Insight } from '../engine/insights';
@@ -34,12 +35,16 @@ import {
   SETTING_BUCKETS_OFF,
   SETTING_LAST_BACKUP,
   SETTING_CAPTURE_MODE,
+  SETTING_APP_LOCK,
+  SETTING_FEATURES,
   SETTING_LAST_ACCOUNT,
   SETTING_ONBOARDING_DONE,
   SETTING_ROLLOVER_PREFIX,
   SETTING_THEME,
+  SETTING_WIDGET_HIDE,
 } from './queries';
 import { listDebts } from './peopleQueries';
+import { savingsBalance } from './savingsQueries';
 import { listContributions, listGoals, listMerchantMemory, listRecurringTransactionIds } from './smartQueries';
 import type { Db } from './types';
 
@@ -65,6 +70,12 @@ export interface Snapshot {
   /** Borrow & lend, with what's owed and what's due (all of them, incl. settled). */
   debts: DebtStatus[];
   theme: ThemeMode;
+  /** What the user chose to see (logging is always on). */
+  features: Features;
+  /** False until the user has picked features once (then the picker shows). */
+  featuresChosen: boolean;
+  /** App lock on, and whether the widget hides amounts while it is. */
+  security: { appLock: boolean; hideWidget: boolean };
   /** "Back up now?" reminder on Home. */
   backup: BackupNudge;
   merchantMemory: MerchantMemory[];
@@ -93,7 +104,15 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     listDebts(db),
     getSetting(db, SETTING_THEME),
   ]);
-  const [lastBackupRaw, snoozeRaw] = await Promise.all([getSetting(db, SETTING_LAST_BACKUP), getSetting(db, SETTING_BACKUP_SNOOZE)]);
+  const [lastBackupRaw, snoozeRaw, featuresRaw, aiRaw, savingsPaise, lockRaw, hideRaw] = await Promise.all([
+    getSetting(db, SETTING_LAST_BACKUP),
+    getSetting(db, SETTING_BACKUP_SNOOZE),
+    getSetting(db, SETTING_FEATURES),
+    getSetting(db, 'ai_enabled'),
+    savingsBalance(db),
+    getSetting(db, SETTING_APP_LOCK),
+    getSetting(db, SETTING_WIDGET_HIDE),
+  ]);
   const [allAccounts, categories, ledger, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
     listAccounts(db),
     listCategories(db),
@@ -126,7 +145,8 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
   const reserved = reservedThisMonth(recurring, pending, now);
   const pictureFor = (buckets: Bucket[]) =>
     computeMoneyPicture({
-      balances, buckets, transactions, reserved_paise: reserved, repayments_paise: repayments, goals_paise: goalsPaise,
+      balances, buckets, transactions, reserved_paise: reserved, repayments_paise: repayments, savings_paise: savingsPaise,
+      goals_paise: goalsPaise,
     });
   const picture = pictureFor(activeBuckets(allBuckets, month));
   if (typeof __DEV__ !== 'undefined' && __DEV__ && !moneyAddsUp(picture)) {
@@ -150,6 +170,17 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     goals,
     debts,
     theme: themeRaw === 'light' || themeRaw === 'dark' ? themeRaw : 'system',
+    ...(() => {
+      const { features, chosen } = readFeatures(featuresRaw, {
+        hasGoals: goals.some((g) => g.status === 'active'),
+        hasDebts: debtsRaw.length > 0,
+        hasBuckets: activeBuckets(allBuckets, month).length > 0,
+        hasRecurring: recurring.some((r) => r.active),
+        aiOn: aiRaw === '1',
+      });
+      return { features, featuresChosen: chosen };
+    })(),
+    security: { appLock: lockRaw === '1', hideWidget: lockRaw === '1' && hideRaw !== '0' },
     backup: backupNudge({
       nowMs: now,
       lastBackupAt: lastBackupRaw == null ? null : Number(lastBackupRaw),

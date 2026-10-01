@@ -8,6 +8,7 @@ import type { MonthKey } from '../../engine/calendar';
 import type { ImportRow } from '../../engine/csv';
 import type { DebtStatus, RepaymentPlan } from '../../engine/debts';
 import type { BackupNudge } from '../../engine/backupNudge';
+import type { Features } from '../../engine/features';
 import type { CorrectionInput } from '../../engine/ledger';
 import type { GoalStatus } from '../../engine/goals';
 import type { Insight } from '../../engine/insights';
@@ -50,6 +51,14 @@ export interface LedgerState {
   debts: DebtStatus[];
   theme: ThemeMode;
   backup: BackupNudge;
+  features: Features;
+  featuresChosen: boolean;
+  security: { appLock: boolean; hideWidget: boolean };
+  setSecurity: (db: Db, security: { appLock: boolean; hideWidget: boolean }) => Promise<void>;
+  /** Save which features to show. Turning Buckets off also clears this month's plan. */
+  setFeatures: (db: Db, features: Features) => Promise<void>;
+  /** Put money into Savings (positive) or take it back out (negative). Returns an undo. */
+  moveSavings: (db: Db, amount: Paise) => Promise<() => Promise<void>>;
   /** A backup file was just made. */
   markBackedUp: (db: Db) => Promise<void>;
   /** "Later" on the backup reminder: hide it for a week. */

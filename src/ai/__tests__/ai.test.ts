@@ -25,7 +25,7 @@ function fakeGemini(byModel: Record<string, () => Promise<Response>>) {
 
 const now = new Date(2026, 8, 21, 12).getTime();
 const fun: BucketStatus = { id: 2, name: 'Entertainment', period_month: '2026-09', allocated_paise: 300_000, role: null, sort_order: 0, category_ids: [C.entertainment], spent_paise: 45_000, remaining_paise: 255_000 };
-const picture: MoneyPicture = { total_paise: 3_000_000, reserved_paise: 800_000, repayments_paise: 0, goals_paise: 0, buckets: [fun], in_buckets_paise: 255_000, unallocated_paise: 1_945_000, plan_pool_paise: 0 };
+const picture: MoneyPicture = { total_paise: 3_000_000, reserved_paise: 800_000, repayments_paise: 0, savings_paise: 0, goals_paise: 0, buckets: [fun], in_buckets_paise: 255_000, unallocated_paise: 1_945_000, plan_pool_paise: 0 };
 const ctx: ChatContext = {
   picture,
   safe: { per_day_paise: 194_500, pool_paise: 1_945_000, days_left: 10, over_paise: 0 },

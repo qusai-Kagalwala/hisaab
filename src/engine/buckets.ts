@@ -2,9 +2,9 @@
  * Buckets are planned money, never expenses. Everything here is derived:
  *
  *   remaining(bucket) = allocated − this bucket's expenses
- *   unallocated       = account totals − reserved bills − repayments due − goals − Σ remaining
+ *   unallocated       = account totals − reserved bills − repayments due − savings − goals − Σ remaining
  *
- * so the invariant  Σ remaining + reserved + repayments + goals + unallocated == account totals
+ * so the invariant  Σ remaining + reserved + repayments + savings + goals + unallocated == account totals
  * holds by construction, and the functions that change allocations
  * (move, cover, split) are tested to keep it.
  */
@@ -44,6 +44,8 @@ export interface MoneyPicture {
   reserved_paise: Paise;
   /** Repayments of borrowed money due this month. */
   repayments_paise: Paise;
+  /** Kept in Savings (never spendable). */
+  savings_paise: Paise;
   /** Set aside in active goals. */
   goals_paise: Paise;
   buckets: BucketStatus[];
@@ -70,11 +72,14 @@ export function computeMoneyPicture(input: {
   transactions: readonly EffectiveTransaction[];
   reserved_paise: Paise;
   repayments_paise?: Paise;
+  savings_paise?: Paise;
   goals_paise?: Paise;
 }): MoneyPicture {
   const total = addPaise(...input.balances.values());
   const goals = input.goals_paise ?? 0;
   const repayments = input.repayments_paise ?? 0;
+  const savings = input.savings_paise ?? 0;
+  assertPaise(savings);
   assertPaise(input.reserved_paise);
   assertPaise(repayments);
   assertPaise(goals);
@@ -86,12 +91,13 @@ export function computeMoneyPicture(input: {
       return { ...b, spent_paise: spent, remaining_paise: subtractPaise(b.allocated_paise, spent) };
     });
   const inBuckets = addPaise(...buckets.map((b) => b.remaining_paise));
-  const unallocated = subtractPaise(total, input.reserved_paise, repayments, goals, inBuckets);
+  const unallocated = subtractPaise(total, input.reserved_paise, repayments, savings, goals, inBuckets);
   const allocated = addPaise(...buckets.map((b) => b.allocated_paise));
   return {
     total_paise: total,
     reserved_paise: input.reserved_paise,
     repayments_paise: repayments,
+    savings_paise: savings,
     goals_paise: goals,
     buckets,
     in_buckets_paise: inBuckets,
@@ -103,7 +109,7 @@ export function computeMoneyPicture(input: {
 /** Σ remaining + bills + repayments + goals + unallocated == account totals (dev self-check). */
 export function moneyAddsUp(p: MoneyPicture): boolean {
   const remaining = p.buckets.reduce((sum, b) => sum + b.remaining_paise, 0);
-  return remaining + p.reserved_paise + p.repayments_paise + p.goals_paise + p.unallocated_paise === p.total_paise;
+  return remaining + p.reserved_paise + p.repayments_paise + p.savings_paise + p.goals_paise + p.unallocated_paise === p.total_paise;
 }
 
 export interface SafeToSpend {
@@ -309,7 +315,7 @@ export function explainSafeToSpend(picture: MoneyPicture, nowMs: number): {
     ...picture.buckets.filter((b) => b.role !== 'flexible' && b.remaining_paise > 0).map((b) => b.remaining_paise),
   );
   const pool = subtractPaise(
-    picture.total_paise, picture.reserved_paise, picture.repayments_paise, picture.goals_paise, plannedElsewhere,
+    picture.total_paise, picture.reserved_paise, picture.repayments_paise, picture.savings_paise, picture.goals_paise, plannedElsewhere,
   );
   const safe = safeToSpend(picture, nowMs);
   if (pool !== safe.pool_paise) throw new Error('Safe-to-spend explanation does not add up');
@@ -317,6 +323,7 @@ export function explainSafeToSpend(picture: MoneyPicture, nowMs: number): {
   const steps: SafeToSpendStep[] = [{ label: 'Money in all your accounts', paise: picture.total_paise, op: 'start' }];
   if (picture.reserved_paise > 0) steps.push({ label: 'Kept aside for bills still due this month', paise: picture.reserved_paise, op: 'minus' });
   if (picture.repayments_paise > 0) steps.push({ label: 'Kept aside to repay borrowed money this month', paise: picture.repayments_paise, op: 'minus' });
+  if (picture.savings_paise > 0) steps.push({ label: 'Kept in your Savings', paise: picture.savings_paise, op: 'minus' });
   if (picture.goals_paise > 0) steps.push({ label: 'Set aside in your goals', paise: picture.goals_paise, op: 'minus' });
   if (plannedElsewhere > 0) steps.push({ label: 'Still planned in your buckets (except Flexible)', paise: plannedElsewhere, op: 'minus' });
   steps.push({ label: 'Free to spend for the rest of this month', paise: pool, op: 'equals' });
