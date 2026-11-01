@@ -11,6 +11,7 @@
 import { CATEGORY_ID } from './defaults';
 import { addPaise, assertPaise, inputToPaise, type Paise } from './money';
 import { parseEntry, type MerchantMemory } from './parser';
+import { isSavingsTransfer } from './spotlight';
 import type { Account, Category, EffectiveTransaction } from './types';
 
 // ---------------------------------------------------------------------------
@@ -92,7 +93,10 @@ export function transactionsCsv(
       const d = new Date(t.occurred_at);
       let type: string = t.type === 'income' ? 'Money in' : t.type === 'expense' ? 'Spent' : 'Transfer';
       let other = accountName(t.to_account_id);
-      if (t.debt_id != null) {
+      if (isSavingsTransfer(t)) {
+        type = t.direction === 'out' ? 'To Savings' : 'From Savings';
+        other = 'Savings';
+      } else if (t.debt_id != null) {
         const debt = people.get(t.debt_id);
         other = debt?.person ?? '';
         if (debt?.kind === 'borrowed') type = t.direction === 'in' ? 'Borrowed' : 'Repaid';
@@ -205,7 +209,7 @@ function typeFromText(text: string | undefined): 'expense' | 'income' | 'skip' |
   if (!t) return null;
   if (['expense', 'spent', 'debit', 'dr', 'out', 'paid', 'payment'].includes(t)) return 'expense';
   if (['income', 'money in', 'credit', 'cr', 'in', 'received'].includes(t)) return 'income';
-  if (['transfer', 'borrowed', 'repaid', 'lent', 'got back'].includes(t)) return 'skip';
+  if (['transfer', 'borrowed', 'repaid', 'lent', 'got back', 'to savings', 'from savings'].includes(t)) return 'skip';
   return null;
 }
 

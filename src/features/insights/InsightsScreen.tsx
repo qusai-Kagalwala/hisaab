@@ -7,6 +7,7 @@ import { MonthSwitcher } from '../../components/MonthSwitcher';
 import { usePalette } from '../../components/theme';
 import { Button, Card, SectionTitle } from '../../components/ui';
 import { monthName, monthStartMs, shiftMonth } from '../../engine/calendar';
+import { monthMoves } from '../../engine/spotlight';
 import { categoryBreakdown, dailySpending, monthlyFlows, monthStats, monthsWithEntries } from '../../engine/charts';
 import { formatINR } from '../../engine/money';
 import { useLedgerStore } from '../../store/ledgerStore';
@@ -15,7 +16,9 @@ import { shareCsv } from '../settings/csvFiles';
 /** Charts and totals for any month: where the money went, day by day, and in vs out. */
 export function InsightsScreen() {
   const p = usePalette();
-  const transactions = useLedgerStore((s) => s.transactions);
+  const transactions = useLedgerStore((s) => s.spending);
+  const spotlightId = useLedgerStore((s) => s.spotlightId);
+  const spotlightName = useLedgerStore((s) => s.accounts.find((a) => a.id === s.spotlightId)?.name ?? null);
   const categories = useLedgerStore((s) => s.categories);
   const excluded = useLedgerStore((s) => s.recurringTxIds);
   const current = useLedgerStore((s) => s.month);
@@ -35,6 +38,16 @@ export function InsightsScreen() {
   const breakdown = useMemo(() => categoryBreakdown(transactions, categories, month, excluded), [transactions, categories, month, excluded]);
   const flows = useMemo(() => monthlyFlows(transactions, asOf), [transactions, asOf]);
   const days = useMemo(() => dailySpending(transactions, asOf, excluded), [transactions, asOf, excluded]);
+  const moves = useMemo(() => monthMoves(transactions, spotlightId, month), [transactions, spotlightId, month]);
+  const movesLine = [
+    moves.moved_in_paise > 0 ? `Moved in ${formatINR(moves.moved_in_paise, { paise: 'never' })}` : null,
+    moves.moved_out_paise > 0 ? `Moved out ${formatINR(moves.moved_out_paise, { paise: 'never' })}` : null,
+    moves.to_savings_paise !== 0
+      ? moves.to_savings_paise > 0
+        ? `Given to Savings ${formatINR(moves.to_savings_paise, { paise: 'never' })}`
+        : `Back from Savings ${formatINR(-moves.to_savings_paise, { paise: 'never' })}`
+      : null,
+  ].filter(Boolean).join(' · ');
   const anyFlow = flows.some((f) => f.in_paise > 0 || f.out_paise > 0);
   const name = monthName(month);
 
@@ -67,6 +80,10 @@ export function InsightsScreen() {
               ? `You kept ${formatINR(stats.saved_paise, { paise: 'never' })} of what came in.`
               : `${formatINR(-stats.saved_paise, { paise: 'never' })} more went out than came in this month.`}
         </Text>
+        {movesLine !== '' && (
+          <Text style={{ color: p.textMuted, fontSize: 13 }}>{movesLine} — not income or spending.</Text>
+        )}
+        {spotlightName && <Text style={{ color: p.textMuted, fontSize: 12 }}>Counting {spotlightName} only.</Text>}
       </Card>
 
       {isCurrent && insights.map((i) => <InsightCard key={i.id} insight={i} />)}

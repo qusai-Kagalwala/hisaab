@@ -305,7 +305,8 @@ export interface SafeToSpendStep {
  * (Flexible and unplanned money are both "free"; an overspend nobody
  * covered is already inside the lower totals.)
  */
-export function explainSafeToSpend(picture: MoneyPicture, nowMs: number): {
+/** `accountName`: the spotlight account when only one account counts (see engine/spotlight). */
+export function explainSafeToSpend(picture: MoneyPicture, nowMs: number, accountName: string | null = null): {
   steps: SafeToSpendStep[];
   pool_paise: Paise;
   days_left: number;
@@ -320,10 +321,11 @@ export function explainSafeToSpend(picture: MoneyPicture, nowMs: number): {
   const safe = safeToSpend(picture, nowMs);
   if (pool !== safe.pool_paise) throw new Error('Safe-to-spend explanation does not add up');
 
-  const steps: SafeToSpendStep[] = [{ label: 'Money in all your accounts', paise: picture.total_paise, op: 'start' }];
-  if (picture.reserved_paise > 0) steps.push({ label: 'Kept aside for bills still due this month', paise: picture.reserved_paise, op: 'minus' });
+  const startLabel = accountName ? `Money in ${accountName} (the account you spend from)` : 'Money in all your accounts';
+  const steps: SafeToSpendStep[] = [{ label: startLabel, paise: picture.total_paise, op: 'start' }];
+  if (picture.reserved_paise > 0) steps.push({ label: accountName ? `Kept aside for bills paid from ${accountName} this month` : 'Kept aside for bills still due this month', paise: picture.reserved_paise, op: 'minus' });
   if (picture.repayments_paise > 0) steps.push({ label: 'Kept aside to repay borrowed money this month', paise: picture.repayments_paise, op: 'minus' });
-  if (picture.savings_paise > 0) steps.push({ label: 'Kept in your Savings', paise: picture.savings_paise, op: 'minus' });
+  if (picture.savings_paise > 0) steps.push({ label: 'Old Savings, still inside your accounts', paise: picture.savings_paise, op: 'minus' });
   if (picture.goals_paise > 0) steps.push({ label: 'Set aside in your goals', paise: picture.goals_paise, op: 'minus' });
   if (plannedElsewhere > 0) steps.push({ label: 'Still planned in your buckets (except Flexible)', paise: plannedElsewhere, op: 'minus' });
   steps.push({ label: 'Free to spend for the rest of this month', paise: pool, op: 'equals' });

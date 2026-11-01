@@ -17,11 +17,12 @@ import {
   SETTING_LAST_BACKUP,
   SETTING_APP_LOCK,
   SETTING_ONBOARDING_DONE,
+  SETTING_SPOTLIGHT,
   SETTING_THEME,
   SETTING_WIDGET_HIDE,
   undoNewTransaction,
 } from '../db/queries';
-import { addSavingsMove, undoSavingsMove } from '../db/savingsQueries';
+import { addSavingsMove, addSavingsTransfer, settleLegacySavings } from '../db/savingsQueries';
 import { learnMerchant } from '../db/smartQueries';
 import { readSnapshot } from '../db/snapshot';
 import type { Db } from '../db/types';
@@ -58,6 +59,9 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   allAccounts: [],
   categories: [],
   transactions: [],
+  spending: [],
+  spotlightId: null,
+  savings: { total_paise: 0, legacy_paise: 0 },
   balances: new Map(),
   lastAccountId: null,
   allBuckets: [],
@@ -198,16 +202,45 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     await get().load(db); // also refreshes the widget
   },
 
-  moveSavings: async (db, amount) => {
-    const { picture, safe } = get();
-    if (amount < 0 && -amount > picture.savings_paise) throw new Error('That is more than what is in Savings');
-    if (amount > 0 && amount > Math.max(safe.pool_paise, 0)) throw new Error('That is more than your free money right now');
-    const id = await addSavingsMove(db, amount);
+  putInSavings: async (db, accountId, amount) => {
+    const balance = get().balances.get(accountId) ?? 0;
+    if (amount > balance) throw new Error('That is more than what is in this account');
+    const id = await addSavingsTransfer(db, { account_id: accountId, amount_paise: amount, direction: 'out' });
     await get().load(db);
     return async () => {
-      await undoSavingsMove(db, id);
+      await undoNewTransaction(db, id);
       await get().load(db);
     };
+  },
+
+  takeFromSavings: async (db, accountId, amount) => {
+    const id = await addSavingsTransfer(db, {
+      account_id: accountId, amount_paise: amount, direction: 'in', available_paise: get().savings.total_paise,
+    });
+    await get().load(db);
+    return async () => {
+      await undoNewTransaction(db, id);
+      await get().load(db);
+    };
+  },
+
+  settleOldSavings: async (db, accountId) => {
+    const legacy = get().savings.legacy_paise;
+    const id = await settleLegacySavings(db, accountId);
+    await get().load(db);
+    return async () => {
+      if (id == null) return;
+      await db.withTransactionAsync(async () => {
+        await undoNewTransaction(db, id);
+        await addSavingsMove(db, legacy, 'Undo: moved out of an account');
+      });
+      await get().load(db);
+    };
+  },
+
+  setSpotlight: async (db, accountId) => {
+    await setSetting(db, SETTING_SPOTLIGHT, accountId == null ? '' : String(accountId));
+    await get().load(db); // also refreshes the widget
   },
 
   markBackedUp: async (db) => {

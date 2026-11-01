@@ -7,14 +7,18 @@ import { useLedgerStore } from '../store/ledgerStore';
 import { useUndoStore } from '../store/undoStore';
 import { dayLabel } from '../utils/dates';
 import { savedTap } from '../utils/haptics';
+import { AccountChips } from './AccountChips';
 import { usePalette } from './theme';
 import { Button, Card, MoneyField } from './ui';
 
-/** "Expected ₹30,000 — received?" [Confirm] [Edit amount] [Skip] */
+/** "Expected ₹30,000 into SBI — received?" [Confirm] [Edit amount] [Skip]; the account can be changed for this time. */
 export function PendingCard({ item }: { item: PendingItem }) {
   const db = useSQLiteContext();
   const p = usePalette();
-  const accountName = useLedgerStore((s) => s.accounts.find((a) => a.id === item.account_id)?.name);
+  const accounts = useLedgerStore((s) => s.accounts);
+  const [accountId, setAccountId] = useState(item.account_id);
+  const [pickAccount, setPickAccount] = useState(false);
+  const accountName = accounts.find((a) => a.id === accountId)?.name;
   const confirm = useLedgerStore((s) => s.confirmPending);
   const skip = useLedgerStore((s) => s.skipPending);
   const reopen = useLedgerStore((s) => s.reopenPending);
@@ -43,19 +47,29 @@ export function PendingCard({ item }: { item: PendingItem }) {
   return (
     <Card>
       <Text style={[styles.title, { color: p.text }]}>
-        Expected {formatINR(item.amount_paise)} — {isIncome ? 'received?' : 'paid?'}
+        Expected {formatINR(item.amount_paise)} {isIncome ? 'into' : 'from'} {accountName ?? 'which account?'} —{' '}
+        {isIncome ? 'received?' : 'paid?'}
       </Text>
       <Text style={{ color: p.textMuted }}>
-        {item.name} · due {dayLabel(item.due_date)} · {accountName ?? 'Account'}
+        {item.name} · due {dayLabel(item.due_date)}
+        {!pickAccount && (
+          <Text onPress={() => setPickAccount(true)} accessibilityRole="button" style={{ color: p.accent, fontWeight: '600' }}>
+            {'  '}Change account
+          </Text>
+        )}
       </Text>
+      {(pickAccount || !accountName) && <AccountChips accounts={accounts} selectedId={accountName ? accountId : null} onSelect={setAccountId} />}
       {editing && <MoneyField value={input} onChange={setInput} autoFocus />}
       <View style={styles.row}>
         <Button
           label={editing ? `Confirm ${formatINR(amount)}` : 'Confirm'}
           compact
-          disabled={busy || amount <= 0}
+          disabled={busy || amount <= 0 || !accountName}
           onPress={() =>
-            run(() => confirm(db, item, amount), `${isIncome ? 'Added' : 'Paid'} ${formatINR(amount)} · ${item.name}`)
+            run(
+              () => confirm(db, { ...item, account_id: accountId }, amount),
+              `${isIncome ? 'Added' : 'Paid'} ${formatINR(amount)} · ${item.name} · ${accountName}`,
+            )
           }
         />
         {!editing && <Button label="Edit amount" variant="secondary" compact onPress={() => setEditing(true)} />}

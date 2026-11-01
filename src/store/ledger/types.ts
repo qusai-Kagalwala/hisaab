@@ -36,6 +36,12 @@ export interface LedgerState {
   categories: Category[];
   /** Newest first; includes voided entries (filter for display). */
   transactions: EffectiveTransaction[];
+  /** Entries that count for daily spending (spotlight account only, or all). */
+  spending: EffectiveTransaction[];
+  /** The account whose money counts for daily spending; null = all accounts. */
+  spotlightId: number | null;
+  /** Savings (money handed over): total, and the part still recorded the old way. */
+  savings: { total_paise: Paise; legacy_paise: Paise };
   balances: Map<number, Paise>;
   lastAccountId: number | null;
   allBuckets: Bucket[];
@@ -57,8 +63,14 @@ export interface LedgerState {
   setSecurity: (db: Db, security: { appLock: boolean; hideWidget: boolean }) => Promise<void>;
   /** Save which features to show. Turning Buckets off also clears this month's plan. */
   setFeatures: (db: Db, features: Features) => Promise<void>;
-  /** Put money into Savings (positive) or take it back out (negative). Returns an undo. */
-  moveSavings: (db: Db, amount: Paise) => Promise<() => Promise<void>>;
+  /** Put money into Savings out of an account (money handed over). Returns an undo. */
+  putInSavings: (db: Db, accountId: number, amount: Paise) => Promise<() => Promise<void>>;
+  /** Take money back from Savings into an account. Returns an undo. */
+  takeFromSavings: (db: Db, accountId: number, amount: Paise) => Promise<() => Promise<void>>;
+  /** One-time: say which account the old-style Savings came out of. Returns an undo. */
+  settleOldSavings: (db: Db, accountId: number) => Promise<() => Promise<void>>;
+  /** Count daily spending from one account (null = all accounts). */
+  setSpotlight: (db: Db, accountId: number | null) => Promise<void>;
   /** A backup file was just made. */
   markBackedUp: (db: Db) => Promise<void>;
   /** "Later" on the backup reminder: hide it for a week. */
@@ -96,7 +108,7 @@ export interface LedgerState {
    * Remove an account. Money still in it moves to `moveTo`, or (moveTo null)
    * is written off with a balance update. Bills/income move along. Returns an undo.
    */
-  removeAccount: (db: Db, id: number, moveTo: number | null) => Promise<() => Promise<void>>;
+  removeAccount: (db: Db, id: number, moveTo: number | null, billsTo?: number | null) => Promise<() => Promise<void>>;
   restoreAccount: (db: Db, id: number) => Promise<void>;
 
   /** Move money between two of your accounts. */

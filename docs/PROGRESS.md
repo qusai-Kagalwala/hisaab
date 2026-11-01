@@ -4,7 +4,7 @@ Claude updates this file at the end of every phase.
 Status: ⬜ not started · 🟨 in progress · ✅ done
 
 ## Current phase
-Phase 7 — Simpler, safer, more trusted ✅ (awaiting owner review on the APK)
+Phase 8 — Spotlight & Savings ✅ (awaiting owner review on the APK)
 
 ## Phase 1 — Foundation ✅
 - [x] Expo + TypeScript project setup, lint, Jest
@@ -128,8 +128,18 @@ Notes:
 Notes:
 - Not verifiable here: fingerprint prompt, FLAG_SECURE, folder picker, Google backup/restore, the new widget on a launcher — all need the APK.
 
+## Phase 8 — Spotlight & Savings ✅
+- [x] Spotlight account: Settings → Daily spending → "Count my spending from" (All accounts by default). Safe to spend, its explanation, bills kept aside, Insights, month spending, both widgets and Ask Hisaab use that account only; new entries start there
+- [x] Home: "Counting SBI only · Not counted: …" line; "This month" names the account
+- [x] Savings = money handed over: "Put in Savings" from an account (balance goes down, Savings belongs to no account), "Take money back" tucked away, History "SBI → Savings", CSV "To Savings"
+- [x] Old Savings (pre-1.4, still inside accounts): one-time "Which account did it come out of?" card; total unchanged
+- [x] Bills & income show their account (Expected card with "Change account", Bills rows, "Not counted" note); onboarding asks the bills account; removing an account asks where its bills go
+- [x] Insights: "Moved in / Given to Savings — not income or spending"
+- Version 1.4.0 (versionCode 10)
+
 ## Session log
 <!-- Newest first. One line per session: date — what was done — what's next -->
+- 2026-11-01 — Phase 8 (owner's own use): spotlight account for all daily calculations, Savings as money handed over (out of an account, linked to none), bills show their account; 326 tests, tsc, lint green; browser run-through passed — next: owner builds 1.4.0 and settles old Savings once.
 - 2026-10-01 — Phase 7 from tester feedback: privacy-first onboarding, feature picker, Savings, buckets explainer, app lock, real Google backup + protected/weekly backups, month widget, motion; 297 tests, tsc, lint green; Android bundle + prebuild OK; browser run-through passed — next: owner builds 1.3.0.
 - 2026-09-29 — Creator credit (Qusai Kagalwala · Saifee Technologies) on How-it-works, Settings and README; 1.2.5.
 - 2026-09-29 — Tab bar hidden under Android 3-button navigation → tab bar and screens respect the bottom inset; 1.2.4.

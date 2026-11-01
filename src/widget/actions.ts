@@ -135,9 +135,9 @@ export async function monthWidgetState(db: Db, nowMs: number): Promise<MonthWidg
   if (snap.security.hideWidget) {
     return { ...base, hidden: true, spent_paise: 0, safe_per_day_paise: 0, has_money: false, bars: Array(total).fill(null) };
   }
-  const days = dailySpending(snap.transactions, nowMs, snap.recurringTxIds);
+  const days = dailySpending(snap.spending, nowMs, snap.recurringTxIds);
   const max = Math.max(1, snap.safe.per_day_paise, ...days.map((x) => x.paise));
-  const stats = monthStats(snap.transactions, snap.month, nowMs, snap.recurringTxIds);
+  const stats = monthStats(snap.spending, snap.month, nowMs, snap.recurringTxIds);
   return {
     ...base,
     hidden: false,

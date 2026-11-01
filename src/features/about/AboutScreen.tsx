@@ -111,11 +111,22 @@ function sections(): Section[] {
     {
       id: 'savings',
       icon: 'piggy-bank-outline',
-      title: 'Savings — money you won’t spend by mistake',
+      title: 'Savings — money you hand over',
       body: (
         <>
-          <P>On Home, tap Add to savings and enter an amount. That money is kept aside: it&apos;s still yours and still in your accounts, but “safe to spend” never counts it.</P>
-          <P>Need it back? Tap Take out. Saving up for something specific? Turn on Goals in Settings → Features.</P>
+          <P>Give part of what you earn to family, or keep it somewhere you never touch? On Home, tap Put in Savings, enter the amount and pick the account it leaves. That account goes down, and the money is kept in Savings — not in any account, never counted in safe to spend.</P>
+          <P>Every move shows in History (“SBI → Savings”). If some comes back, tap Take money back from Savings. Saving up for something specific? Turn on Goals in Settings → Features.</P>
+        </>
+      ),
+    },
+    {
+      id: 'spotlight',
+      icon: 'target',
+      title: 'Spend from one account? Count only that one',
+      body: (
+        <>
+          <P>Settings → Daily spending → Count my spending from: pick the account you actually spend from. Safe to spend, bills, Insights and the widgets then use that account only.</P>
+          <P>Your other accounts are still kept up to date and shown on Home as “Not counted”. For a big payment, use Move money to bring money into your spending account first — then it counts.</P>
         </>
       ),
     },

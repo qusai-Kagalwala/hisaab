@@ -40,6 +40,8 @@ function RecurringRow({ item }: { item: Recurring }) {
   const db = useSQLiteContext();
   const p = usePalette();
   const setActive = useLedgerStore((s) => s.setRecurringActive);
+  const accountName = useLedgerStore((s) => s.allAccounts.find((a) => a.id === item.account_id)?.name ?? 'account');
+  const counted = useLedgerStore((s) => s.spotlightId == null || s.spotlightId === item.account_id);
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/recurring/edit', params: { id: String(item.id) } })}
@@ -52,9 +54,12 @@ function RecurringRow({ item }: { item: Recurring }) {
       <View style={{ flex: 1 }}>
         <Text style={[styles.name, { color: p.text }]}>{item.name}</Text>
         <Text style={{ color: p.textMuted, fontSize: 13 }}>
-          {scheduleLabel(item.rule, item.anchor_day)}
+          {item.type === 'income' ? 'Into' : 'From'} {accountName} · {scheduleLabel(item.rule, item.anchor_day)}
           {item.active ? ` · next ${dayLabel(item.next_due)}` : ' · paused'}
         </Text>
+        {!counted && (
+          <Text style={{ color: p.textMuted, fontSize: 12 }}>Not counted in safe to spend (not your spending account)</Text>
+        )}
       </View>
       <Text style={[styles.amount, { color: item.type === 'income' ? p.positive : p.text }]}>
         {formatINR(item.amount_paise, { signed: item.type === 'income' })}

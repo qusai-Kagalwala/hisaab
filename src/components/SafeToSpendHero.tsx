@@ -17,7 +17,8 @@ export function SafeToSpendHero() {
   const picture = useLedgerStore((s) => s.picture);
   const [now] = useState(() => Date.now());
   const [open, setOpen] = useState(false);
-  const e = explainSafeToSpend(picture, now);
+  const spotlightName = useLedgerStore((s) => s.accounts.find((a) => a.id === s.spotlightId)?.name ?? null);
+  const e = explainSafeToSpend(picture, now, spotlightName);
   const end = new Date(now);
   end.setDate(end.getDate() + e.days_left - 1);
   const endLabel = `${end.getDate()} ${MONTHS[end.getMonth()]}`;

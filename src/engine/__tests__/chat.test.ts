@@ -98,3 +98,16 @@ describe('suggested actions', () => {
     expect(a).toMatchObject({ from_id: 9, to_id: 2, amount_paise: 45_000 });
   });
 });
+
+describe('spotlight account', () => {
+  const spot: ChatContext = { ...ctx, spotlight: 'UPI / Bank', picture: { ...picture, total_paise: 2_800_000 } };
+  it('talks about the spending account and lists the others as not counted', () => {
+    const text = answer('How much do I have?', spot).text;
+    expect(text).toContain('UPI / Bank has ₹28,000 — the only account I count for spending.');
+    expect(text).toContain('Not counted: Cash ₹2,000.');
+    expect(text).not.toContain('in total');
+  });
+  it('in Hinglish too', () => {
+    expect(answer('kitna paisa hai', spot).text).toContain('UPI / Bank mein ₹28,000 hai');
+  });
+});

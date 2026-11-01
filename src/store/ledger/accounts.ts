@@ -29,13 +29,14 @@ export const accountsActions: SliceCreator<'addAccount' | 'renameAccount' | 'adj
     return id;
   },
 
-  removeAccount: async (db, id, moveTo) => {
+  removeAccount: async (db, id, moveTo, billsTo) => {
     const { accounts, balances } = get();
     const account = accounts.find((a) => a.id === id);
     if (!account) throw new Error('Account not found');
     const others = accounts.filter((a) => a.id !== id);
     if (others.length === 0) throw new Error('Keep at least one account');
     if (moveTo != null && !others.some((a) => a.id === moveTo)) throw new Error('Pick another account');
+    if (billsTo != null && !others.some((a) => a.id === billsTo)) throw new Error('Pick another account for the bills');
     const balance = balances.get(id) ?? 0;
     let txId: number | null = null;
     if (balance !== 0 && moveTo != null) {
@@ -53,7 +54,7 @@ export const accountsActions: SliceCreator<'addAccount' | 'renameAccount' | 'adj
         note: 'Balance update',
       });
     }
-    const movedRecurring = await moveRecurringToAccount(db, id, moveTo ?? others[0].id);
+    const movedRecurring = await moveRecurringToAccount(db, id, billsTo ?? moveTo ?? others[0].id);
     await setAccountArchived(db, id, true);
     await get().load(db);
     return async () => {

@@ -10,6 +10,7 @@ import { PendingCard } from '../../components/PendingCard';
 import { RepaymentCard } from '../../components/RepaymentCard';
 import { SavingsCard } from '../../components/SavingsCard';
 import { SafeToSpendHero } from '../../components/SafeToSpendHero';
+import { SpotlightLine } from '../../components/SpotlightLine';
 import { WeeklyCard } from '../../components/WeeklyCard';
 import { usePalette } from '../../components/theme';
 import { Button, Card, ProgressBar, SectionTitle } from '../../components/ui';
@@ -33,7 +34,9 @@ export function HomeScreen() {
   const bucketsOff = useLedgerStore((s) => s.bucketsOff);
   const f = useLedgerStore((s) => s.features);
   const debts = useLedgerStore((s) => s.debts);
-  const transactions = useLedgerStore((s) => s.transactions);
+  const transactions = useLedgerStore((s) => s.spending);
+  const savingsTotal = useLedgerStore((s) => s.savings.total_paise);
+  const spotlightName = useLedgerStore((s) => s.accounts.find((a) => a.id === s.spotlightId)?.name ?? null);
   const excluded = useLedgerStore((s) => s.recurringTxIds);
   const month = useLedgerStore((s) => s.month);
   const [now] = useState(() => Date.now());
@@ -55,6 +58,7 @@ export function HomeScreen() {
       <FadeIn>
         <SafeToSpendHero />
       </FadeIn>
+      <SpotlightLine />
       {!hasEntries && (
         <Pressable onPress={() => router.push('/about')} accessibilityRole="link" style={{ alignSelf: 'center' }}>
           <Text style={{ color: p.accent, fontWeight: '600' }}>New here? See how Hisaab works ›</Text>
@@ -74,7 +78,7 @@ export function HomeScreen() {
       </View>
       </FadeIn>
 
-      {(f.savings || picture.savings_paise > 0) && (
+      {(f.savings || savingsTotal > 0) && (
         <FadeIn delay={160}>
           <SavingsCard />
         </FadeIn>
@@ -210,10 +214,10 @@ export function HomeScreen() {
 
       <SectionTitle>This month</SectionTitle>
       <Card>
-        <Row label="In your accounts" value={formatINR(picture.total_paise)} />
+        <Row label={spotlightName ? `In ${spotlightName}` : 'In your accounts'} value={formatINR(picture.total_paise)} />
         <Row label="Kept for bills" value={formatINR(picture.reserved_paise)} />
         {picture.repayments_paise > 0 && <Row label="Kept for repayments" value={formatINR(picture.repayments_paise)} />}
-        {picture.savings_paise > 0 && <Row label="In Savings" value={formatINR(picture.savings_paise)} />}
+        {picture.savings_paise > 0 && <Row label="Old Savings (still in accounts)" value={formatINR(picture.savings_paise)} />}
         {hasBuckets && <Row label="In buckets" value={formatINR(picture.in_buckets_paise)} />}
         {picture.goals_paise > 0 && <Row label="Set aside in goals" value={formatINR(picture.goals_paise)} />}
         <Row
