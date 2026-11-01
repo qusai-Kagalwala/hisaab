@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { DATA_NEVER_SENT, DATA_SENT_EXPLAINER } from '../../ai/context';
 import { Icon } from '../../components/Icon';
+import { SpotlightPicker } from '../../components/SpotlightPicker';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { Button, Card, Chip, SectionTitle } from '../../components/ui';
 import { exportAll, importAll } from '../../db/backupQueries';
@@ -28,6 +29,8 @@ export function SettingsScreen() {
     <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <SectionTitle>Features</SectionTitle>
       <Button label="Choose what Hisaab shows" icon="tune-variant" variant="secondary" compact onPress={() => router.push('/features')} />
+      <SectionTitle>Daily spending</SectionTitle>
+      <SpotlightPicker />
       <SecuritySection />
       <ThemeSection />
       {showAi && <AiSection />}

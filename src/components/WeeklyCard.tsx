@@ -13,7 +13,7 @@ export function WeeklyCard() {
   const db = useSQLiteContext();
   const p = usePalette();
   const enabled = useAiStore((s) => s.weekly);
-  const transactions = useLedgerStore((s) => s.transactions);
+  const transactions = useLedgerStore((s) => s.spending);
   const categories = useLedgerStore((s) => s.categories);
   const excluded = useLedgerStore((s) => s.recurringTxIds);
   const [summary, setSummary] = useState<{ text: string; source: 'ai' | 'offline' } | null>(null);

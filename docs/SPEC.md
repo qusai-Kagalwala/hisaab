@@ -193,6 +193,7 @@ Complete each phase, run tests, update PROGRESS.md, then **stop for review**.
 4. **AI:** Gemini service + fallback chain, Context Builder, Assistant chat, weekly summary, Ideas + offline fallback.
 5. **Polish:** Android widget, quick tile, onboarding, backup, final UX pass.
 7. **Simpler, safer, more trusted (tester feedback):** privacy promise first, pick-your-features, simple Savings, buckets as an explained advanced feature, app lock, Google backup that includes the ledger, password-protected and weekly backups, "This month" widget, calm motion.
+8. **Spotlight & Savings (owner's own use):** pick the one account you spend from and every daily calculation uses only it; Savings is money handed over — it leaves an account and belongs to none; bills and income always show their account.
 6. **Best of the references (budget.io, Hisaabat):** transfers between accounts, borrow & lend with no-interest repayment plans, removable accounts, bottom tab bar, History search/filters, month browsing + month stats, CSV export, optional reviewed import, theme setting, new app icon, splash + light motion, smaller APK.
 
 ## 12. Quality

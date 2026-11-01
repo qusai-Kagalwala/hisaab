@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MIN_TAP, usePalette } from '../../components/theme';
 import { Button, Chip, MoneyField } from '../../components/ui';
@@ -121,11 +121,14 @@ function AccountRow({ account, balance, canRemove }: { account: Account; balance
   const others = accounts.filter((a) => a.id !== account.id);
   // Where money still in this account goes: another account, or null = it's gone (set to ₹0).
   const [moveTo, setMoveTo] = useState<number | null>(others[0]?.id ?? null);
+  const recurring = useLedgerStore((s) => s.recurring);
+  const bills = useMemo(() => recurring.filter((r) => r.active && r.account_id === account.id), [recurring, account.id]);
+  const [billsTo, setBillsTo] = useState<number | null>(others[0]?.id ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const onRemove = async () => {
     try {
-      const undo = await removeAccount(db, account.id, balance === 0 ? null : moveTo);
+      const undo = await removeAccount(db, account.id, balance === 0 ? null : moveTo, bills.length > 0 ? billsTo : null);
       showUndo(`Removed ${account.name}`, undo);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -210,6 +213,19 @@ function AccountRow({ account, balance, canRemove }: { account: Account; balance
                 <Chip key={o.id} label={`Move to ${o.name}`} selected={moveTo === o.id} onPress={() => setMoveTo(o.id)} />
               ))}
               <Chip label={balance > 0 ? "It's gone — set to ₹0" : 'Just set it to ₹0'} selected={moveTo == null} onPress={() => setMoveTo(null)} />
+            </View>
+          </>
+        )}
+        {bills.length > 0 && others.length > 0 && (
+          <>
+            <Text style={{ color: p.text }}>
+              {bills.length === 1 ? `1 bill or income uses ${account.name}` : `${bills.length} bills and income use ${account.name}`}
+              {` (${bills.map((b) => b.name).join(', ')}). Move them to:`}
+            </Text>
+            <View style={styles.typeRow}>
+              {others.map((o) => (
+                <Chip key={o.id} label={o.name} selected={billsTo === o.id} onPress={() => setBillsTo(o.id)} />
+              ))}
             </View>
           </>
         )}

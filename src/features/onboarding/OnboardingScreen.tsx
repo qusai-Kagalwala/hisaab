@@ -70,6 +70,7 @@ export function OnboardingScreen() {
   const [incomeAmount, setIncomeAmount] = useState('');
   const [incomeDay, setIncomeDay] = useState(1);
   const [incomeAccount, setIncomeAccount] = useState<number | null>(null);
+  const [billsAccount, setBillsAccount] = useState<number | null>(null);
   const [bills, setBills] = useState<{ label: string; category: number; amount: string; day: number }[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -125,7 +126,7 @@ export function OnboardingScreen() {
         if (amount <= 0) continue;
         await addRecurring(db, {
           type: 'expense', name: b.label, amount_paise: amount,
-          account_id: bankAccount?.id ?? accounts[0].id, category_id: b.category, rule: 'monthly', anchor_day: b.day,
+          account_id: billsAccount ?? bankAccount?.id ?? accounts[0].id, category_id: b.category, rule: 'monthly', anchor_day: b.day,
         });
       }
       next();
@@ -255,6 +256,16 @@ export function OnboardingScreen() {
                 <DayStepper value={b.day} onChange={(d) => setBills((cur) => cur.map((x, k) => (k === i ? { ...x, day: d } : x)))} />
               </Card>
             ))}
+            {bills.length > 0 && (
+              <Card>
+                <Text style={{ color: p.text, fontWeight: '600' }}>Paid from which account?</Text>
+                <View style={styles.chips}>
+                  {accounts.map((a) => (
+                    <Chip key={a.id} label={a.name} selected={(billsAccount ?? bankAccount?.id) === a.id} onPress={() => setBillsAccount(a.id)} />
+                  ))}
+                </View>
+              </Card>
+            )}
             <Button label={bills.length ? 'Next' : 'None — skip'} onPress={saveBills} disabled={busy} />
           </>
         )}

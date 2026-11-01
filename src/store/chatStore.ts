@@ -31,6 +31,7 @@ export function chatContext(nowMs = Date.now()): ChatContext {
     goals: s.goals,
     categories: s.categories,
     month_spending: s.monthSpending,
+    spotlight: s.accounts.find((a) => a.id === s.spotlightId)?.name ?? null,
     nowMs,
   };
 }

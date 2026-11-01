@@ -217,6 +217,8 @@ export const SETTING_WIDGET_HIDE = 'widget_hide_amounts';
 export const SETTING_FEATURES = 'features';
 /** 'system' (default), 'light' or 'dark'. */
 export const SETTING_THEME = 'theme';
+/** Account id whose money counts for daily spending; missing/empty = all accounts (see engine/spotlight). */
+export const SETTING_SPOTLIGHT = 'spotlight_account_id';
 /** 'keypad' (default) or 'text' — how the capture screen opens. */
 export const SETTING_CAPTURE_MODE = 'capture_mode';
 /** Remembered month-end choice per bucket name: `rollover:<name>` → keep|savings|flexible. */

@@ -30,10 +30,12 @@ export function buildFacts(intent: Intent, question: string, ctx: ChatContext): 
 
   switch (intent) {
     case 'balance':
-      lines.push(`Total money in all accounts: ${fmt(picture.total_paise)}`);
+      lines.push(ctx.spotlight
+        ? `Money in ${ctx.spotlight} (the only account counted for spending): ${fmt(picture.total_paise)}`
+        : `Total money in all accounts: ${fmt(picture.total_paise)}`);
       lines.push(`Kept aside for bills this month: ${fmt(picture.reserved_paise)}`);
       if (picture.repayments_paise > 0) lines.push(`Kept aside to repay borrowed money this month: ${fmt(picture.repayments_paise)}`);
-      if (picture.savings_paise > 0) lines.push(`Kept in Savings (not spendable): ${fmt(picture.savings_paise)}`);
+      if (picture.savings_paise > 0) lines.push(`Old Savings still inside the accounts (not spendable): ${fmt(picture.savings_paise)}`);
       lines.push(`Set aside in goals: ${fmt(picture.goals_paise)}`);
       if (picture.buckets.length) lines.push(`Planned in buckets (left): ${fmt(picture.in_buckets_paise)}`);
       lines.push(`Unallocated: ${fmt(picture.unallocated_paise)}`);

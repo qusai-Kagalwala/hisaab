@@ -32,6 +32,8 @@ export interface ChatContext {
   categories: Category[];
   /** Everyday spending this month by category id. */
   month_spending: Map<number | null, Paise>;
+  /** The one account counted for daily spending (null = all accounts); see engine/spotlight. */
+  spotlight?: string | null;
   nowMs: number;
 }
 
@@ -128,6 +130,19 @@ function balanceAnswer(ctx: ChatContext, lang: Lang): string {
     setAside.push(lang === 'hi' ? `${fmt(picture.repayments_paise)} udhaar chukane ke liye` : `${fmt(picture.repayments_paise)} kept to repay borrowed money`);
   }
   if (picture.goals_paise > 0) setAside.push(lang === 'hi' ? `${fmt(picture.goals_paise)} goals mein` : `${fmt(picture.goals_paise)} in goals`);
+  if (ctx.spotlight) {
+    const others = ctx.accounts.filter((a) => a.name !== ctx.spotlight).map((a) => `${a.name} ${fmt(a.balance_paise)}`).join(', ');
+    if (lang === 'hi') {
+      return `${ctx.spotlight} mein ${fmt(picture.total_paise)} hai — main sirf isi account se hisaab karta hoon.` +
+        (setAside.length ? ` Isme se ${setAside.join(', ')} rakha hai.` : '') +
+        (others ? ` Baaki accounts (gine nahi jaate): ${others}.` : '') +
+        ` Aaj ${fmt(safe.per_day_paise)} tak aaram se kharch kar sakte ho.`;
+    }
+    return `${ctx.spotlight} has ${fmt(picture.total_paise)} — the only account I count for spending.` +
+      (setAside.length ? ` Of that, ${setAside.join(' and ')}.` : '') +
+      (others ? ` Not counted: ${others}.` : '') +
+      ` Safe to spend today: ${fmt(safe.per_day_paise)}.`;
+  }
   if (lang === 'hi') {
     return `Aapke paas total ${fmt(picture.total_paise)} hai (${parts}).` +
       (setAside.length ? ` Isme se ${setAside.join(', ')} rakha hai.` : '') +

@@ -24,6 +24,7 @@ import type { Paise } from '../engine/money';
 import type { MerchantMemory } from '../engine/parser';
 import { lastEntry, quickPicks, type QuickPick } from '../engine/quickPicks';
 import { reservedThisMonth, type Recurring } from '../engine/recurring';
+import { resolveSpotlight, savingsFromTransfers, scopeBalances, scopeByAccount, scopeTransactions, type Scope } from '../engine/spotlight';
 import type { Account, Category, EffectiveTransaction } from '../engine/types';
 import { listAllBuckets, listPending, listRecurring, type PendingItem } from './moneyQueries';
 import {
@@ -40,6 +41,7 @@ import {
   SETTING_LAST_ACCOUNT,
   SETTING_ONBOARDING_DONE,
   SETTING_ROLLOVER_PREFIX,
+  SETTING_SPOTLIGHT,
   SETTING_THEME,
   SETTING_WIDGET_HIDE,
 } from './queries';
@@ -58,7 +60,17 @@ export interface Snapshot {
   /** Every account, removed ones included — for naming old entries. */
   allAccounts: Account[];
   categories: Category[];
+  /** Every entry, all accounts — History, editing, people. */
   transactions: EffectiveTransaction[];
+  /**
+   * Entries that count for daily spending: those touching the spotlight
+   * account, or all of them when there is none. Insights, charts, widgets.
+   */
+  spending: EffectiveTransaction[];
+  /** The account whose money counts for daily spending; null = all accounts. */
+  spotlightId: Scope;
+  /** Savings (money handed over): total, and the part still recorded the old way. */
+  savings: { total_paise: Paise; legacy_paise: Paise };
   balances: Map<number, Paise>;
   lastAccountId: number | null;
   allBuckets: Bucket[];
@@ -113,7 +125,7 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     getSetting(db, SETTING_APP_LOCK),
     getSetting(db, SETTING_WIDGET_HIDE),
   ]);
-  const [allAccounts, categories, ledger, lastRaw, allBuckets, recurring, pending, remembered, offRaw] = await Promise.all([
+  const [allAccounts, categories, ledger, lastRaw, allBuckets, recurring, pending, remembered, offRaw, spotlightRaw] = await Promise.all([
     listAccounts(db),
     listCategories(db),
     loadLedger(db, typeof __DEV__ !== 'undefined' && __DEV__),
@@ -123,12 +135,18 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     listPending(db),
     getSettingsWithPrefix(db, SETTING_ROLLOVER_PREFIX),
     getSetting(db, SETTING_BUCKETS_OFF),
+    getSetting(db, SETTING_SPOTLIGHT),
   ]);
   const goals = goalsRaw.map((g) => goalStatus(g, contributions, now));
   const goalsPaise = setAsideForGoals(goals);
   const transactions = ledger.list;
   const balances = computeBalances(allAccounts.map((a) => a.id), transactions);
   const accounts = allAccounts.filter((a) => !a.archived);
+  // Spotlight: only one account's money counts for daily spending (null = all).
+  const spotlightId = resolveSpotlight(spotlightRaw, allAccounts);
+  const spending = scopeTransactions(transactions, spotlightId);
+  const countedBalances = scopeBalances(balances, spotlightId);
+  const savingsTotal = savingsPaise + savingsFromTransfers(transactions);
   // Group borrow/lend entries once instead of scanning the ledger per person.
   const byDebt = new Map<number, EffectiveTransaction[]>();
   for (const t of transactions) {
@@ -140,13 +158,16 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
   const debts = debtsRaw.map((d) => debtStatus(d, byDebt.get(d.id) ?? [], now));
   const repayments = repaymentsThisMonth(debts);
   const last = lastRaw == null ? null : Number(lastRaw);
-  const lastAccountId = accounts.some((a) => a.id === last) ? last : accounts[0]?.id ?? null;
+  // With a spotlight account, new entries start there; other accounts stay one tap away.
+  const lastAccountId = spotlightId ?? (accounts.some((a) => a.id === last) ? last : accounts[0]?.id ?? null);
   const month = monthKey(now);
-  const reserved = reservedThisMonth(recurring, pending, now);
+  const reserved = reservedThisMonth(scopeByAccount(recurring, spotlightId), scopeByAccount(pending, spotlightId), now);
+  // Old-style Savings still sits inside the accounts; with a spotlight it is
+  // left out until the user says which account it was in.
   const pictureFor = (buckets: Bucket[]) =>
     computeMoneyPicture({
-      balances, buckets, transactions, reserved_paise: reserved, repayments_paise: repayments, savings_paise: savingsPaise,
-      goals_paise: goalsPaise,
+      balances: countedBalances, buckets, transactions: spending, reserved_paise: reserved, repayments_paise: repayments,
+      savings_paise: spotlightId == null ? savingsPaise : 0, goals_paise: goalsPaise,
     });
   const picture = pictureFor(activeBuckets(allBuckets, month));
   if (typeof __DEV__ !== 'undefined' && __DEV__ && !moneyAddsUp(picture)) {
@@ -160,6 +181,9 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
     allAccounts,
     categories,
     transactions,
+    spending,
+    spotlightId,
+    savings: { total_paise: savingsTotal, legacy_paise: savingsPaise },
     balances,
     lastAccountId,
     allBuckets,
@@ -194,11 +218,11 @@ export async function readSnapshot(db: Db, now: number): Promise<Snapshot> {
       onboardedRaw !== '1' && ledger.originals.size === 0 && recurring.length === 0 && allBuckets.length === 0 && debtsRaw.length === 0,
     picture,
     safe: safeToSpend(picture, now),
-    insights: computeInsights({ transactions, excludedIds: recurringTxIds, categories, buckets: picture.buckets, nowMs: now }),
+    insights: computeInsights({ transactions: spending, excludedIds: recurringTxIds, categories, buckets: picture.buckets, nowMs: now }),
     quickPicks: quickPicks(transactions, now, recurringTxIds),
     lastEntry: lastEntry(transactions, recurringTxIds),
     monthSpending: spendingByCategory(
-      everydayExpenses(transactions, recurringTxIds), monthStartMs(month), monthStartMs(shiftMonth(month, 1)),
+      everydayExpenses(spending, recurringTxIds), monthStartMs(month), monthStartMs(shiftMonth(month, 1)),
     ),
     pictureFor,
   };

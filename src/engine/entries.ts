@@ -3,13 +3,16 @@
  * filters. Pure, so History stays a thin component.
  */
 import { monthKey, type MonthKey } from './calendar';
+import { isSavingsTransfer } from './spotlight';
 import type { Debt } from './debts';
 import type { Account, Category, EffectiveTransaction } from './types';
 
-export type EntryKind = 'expense' | 'income' | 'transfer' | 'borrowed' | 'repaid' | 'lent' | 'got_back';
+export type EntryKind =
+  | 'expense' | 'income' | 'transfer' | 'borrowed' | 'repaid' | 'lent' | 'got_back' | 'to_savings' | 'from_savings';
 
 export function entryKind(tx: EffectiveTransaction, debt: Pick<Debt, 'kind'> | undefined): EntryKind {
   if (tx.type !== 'transfer') return tx.type;
+  if (isSavingsTransfer(tx)) return tx.direction === 'out' ? 'to_savings' : 'from_savings';
   if (tx.debt_id == null) return 'transfer';
   if (debt?.kind === 'lent') return tx.direction === 'out' ? 'lent' : 'got_back';
   return tx.direction === 'in' ? 'borrowed' : 'repaid';
@@ -39,6 +42,10 @@ export function entryLabel(
   switch (kind) {
     case 'transfer':
       return { kind, title: `${account(tx.account_id)} → ${account(tx.to_account_id)}`, sign: '', icon: 'swap-horizontal' };
+    case 'to_savings':
+      return { kind, title: `${account(tx.account_id)} → Savings`, sign: '', icon: 'piggy-bank-outline' };
+    case 'from_savings':
+      return { kind, title: `Savings → ${account(tx.account_id)}`, sign: '', icon: 'piggy-bank-outline' };
     case 'borrowed':
       return { kind, title: `Borrowed from ${person}`, sign: '+', icon: 'hand-coin-outline' };
     case 'repaid':

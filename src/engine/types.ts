@@ -17,7 +17,10 @@ export interface Account {
  * Transfers move money without it being spending or income:
  *  - between two of your accounts: `to_account_id` is set;
  *  - with a person (borrow & lend): `debt_id` + `direction` are set —
- *    'in' = money came into `account_id`, 'out' = money left it.
+ *    'in' = money came into `account_id`, 'out' = money left it;
+ *  - with Savings (money handed over, e.g. to family): only `direction` is
+ *    set — 'out' = put into Savings from `account_id`, 'in' = taken back.
+ *    Savings belongs to no account; see engine/spotlight.ts.
  */
 export type TransferDirection = 'in' | 'out';
 

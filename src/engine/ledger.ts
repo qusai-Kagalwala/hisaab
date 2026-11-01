@@ -6,15 +6,17 @@
 import { addPaise, assertPaise, subtractPaise, type Paise } from './money';
 import type { EffectiveTransaction, TransactionRow } from './types';
 
-/** A transfer row must say where the money went: another account, or a person. */
+/** A transfer row must say where the money went: another account, a person, or Savings. */
 function checkTransferShape(row: TransactionRow): void {
   const toAccount = row.to_account_id ?? null;
   const debt = row.debt_id ?? null;
   const direction = row.direction ?? null;
+  const hasDirection = direction === 'in' || direction === 'out';
   const isAccountTransfer = toAccount != null && debt == null && direction == null;
-  const isDebtTransfer = toAccount == null && debt != null && (direction === 'in' || direction === 'out');
-  if (!isAccountTransfer && !isDebtTransfer) {
-    throw new Error(`Transfer ${row.id} needs either a destination account or a person`);
+  const isDebtTransfer = toAccount == null && debt != null && hasDirection;
+  const isSavingsTransfer = toAccount == null && debt == null && hasDirection;
+  if (!isAccountTransfer && !isDebtTransfer && !isSavingsTransfer) {
+    throw new Error(`Transfer ${row.id} needs a destination account, a person or Savings`);
   }
   if (isAccountTransfer && toAccount === row.account_id) {
     throw new Error(`Transfer ${row.id} goes to the same account`);

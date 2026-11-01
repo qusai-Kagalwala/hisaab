@@ -8,6 +8,7 @@ import { MIN_TAP, usePalette } from '../../components/theme';
 import { Chip } from '../../components/ui';
 import { monthKey } from '../../engine/calendar';
 import { applyKeypadKey, formatINR, formatKeypadInput, inputToPaise, paiseToInput } from '../../engine/money';
+import { isSavingsTransfer } from '../../engine/spotlight';
 import type { EffectiveTransaction } from '../../engine/types';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { useUndoStore } from '../../store/undoStore';
@@ -66,8 +67,11 @@ function TransferEditForm({ tx }: { tx: EffectiveTransaction }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const amountPaise = inputToPaise(input);
-  const isMove = tx.debt_id == null;
-  const title = isMove
+  const isSavings = isSavingsTransfer(tx);
+  const isMove = tx.debt_id == null && !isSavings;
+  const title = isSavings
+    ? tx.direction === 'out' ? 'Put in Savings' : 'Taken back from Savings'
+    : isMove
     ? 'Edit move'
     : debt?.kind === 'lent'
       ? tx.direction === 'out' ? `Lent to ${debt.person}` : `${debt.person} paid back`
